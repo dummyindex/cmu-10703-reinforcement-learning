@@ -10,6 +10,7 @@ from gym.envs.toy_text import frozen_lake, discrete
 from gym.envs.registration import register
 
 action_names = {LEFT: 'LEFT', RIGHT: 'RIGHT', DOWN: 'DOWN', UP: 'UP'}
+action_letters = {LEFT: 'L', RIGHT: 'R', DOWN: 'D', UP: 'U'}
 
 MAPS = {
     "4x4": [
