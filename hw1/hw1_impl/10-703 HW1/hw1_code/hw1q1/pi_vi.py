@@ -11,6 +11,7 @@ import lake_envs as lake_env
 SYNC = "sync"
 ASYNC_ORDERD = "async_ordered"
 ASYNC_PERM = "async_perm"
+ASYNC_MANHATTAN = "async_manhattan"
 
 
 def print_policy(policy, action_names):
@@ -413,12 +414,28 @@ def policy_iteration_async_randperm(env, gamma, max_iterations=int(1e3),
 
 
 
+def get_goal_state(env):
+    for state in range(env.nS):
+        for action in range(env.nA):
+            for trans in range(len(env.P[state][action])):
+                prob_, ns_, r_, is_terminal = env.P[state][action][trans]
+                if r_ >0.9 and is_terminal:
+                    return ns_
+    assert False, "goal state not found?!"
+
+
+def manhatten_dist(s1, s2, nc):
+    r1, c1 = s1 // nc, s1 % nc
+    r2, c2 = s2 // nc, s2 % nc
+    return abs(r1 - r2) + abs(c1 - c2)
+
 def value_iteration_general(env, gamma, max_iterations=None, tol=None, is_sync=True, state_order="ordered"):
     ordered_states = np.arange(env.nS)
     actions = np.arange(env.nA)
     value_func = np.zeros(env.nS)  # initialize value function
     niters = 0
     policy = np.zeros(env.nS, dtype=np.int)
+    goal_state = get_goal_state(env)
     while True:
       niters += 1
       delta = 0
@@ -427,6 +444,8 @@ def value_iteration_general(env, gamma, max_iterations=None, tol=None, is_sync=T
         states = ordered_states
       elif state_order == "perm":
         states = np.random.permutation(ordered_states)
+      elif state_order == "manhattan":
+        states = sorted(ordered_states, key=lambda s: manhatten_dist(s, goal_state, env.ncol))
 
       for state in states:
         max_action_val = -np.inf
@@ -550,8 +569,7 @@ def value_iteration_async_custom(env, gamma, max_iterations=int(1e3), tol=1e-3):
     np.ndarray, iteration
       The value function and the number of iterations it took to converge.
     """
-    value_func = np.zeros(env.nS)  # initialize value function
-    return value_func, 0
+    return value_iteration_general(env, gamma, max_iterations=max_iterations, tol=tol, is_sync=False, state_order="manhattan")
 
 
 ######################

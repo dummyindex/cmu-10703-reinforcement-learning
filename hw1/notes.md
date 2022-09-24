@@ -12,3 +12,10 @@ This theorem misses the empty metric case. If the set S is empty, then the state
 3. True
 TODO: shown in slides
 
+
+
+## 1.3
+
+custom algrithms
+
+sorted based on value function
