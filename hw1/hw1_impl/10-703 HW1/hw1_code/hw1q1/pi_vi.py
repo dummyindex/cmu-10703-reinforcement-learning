@@ -133,7 +133,7 @@ def evaluate_policy_async_ordered(env, value_func, gamma, policy, max_iterations
       the value function converged.
     """
 
-    return evaluate_policy_general(env, value_func, gamma, policy, max_iterations, tol, is_sync=False)
+    
 
 
 def evaluate_policy_async_randperm(env, value_func, gamma, policy, max_iterations=int(1e3), tol=1e-3):
@@ -165,7 +165,7 @@ def evaluate_policy_async_randperm(env, value_func, gamma, policy, max_iteration
       the value function converged.
     """
 
-    return value_func, 0
+    return evaluate_policy_general(env, value_func, gamma, policy, max_iterations, tol, is_sync=False, heuristics="perm")
 
 
 def improve_policy(env, gamma, value_func, policy):
@@ -211,7 +211,7 @@ def improve_policy(env, gamma, value_func, policy):
     return policy_stable, policy
 
 
-def evaluate_policy_general(env, value_func, gamma, policy, max_iterations=int(1e3), tol=1e-3, is_sync=True):
+def evaluate_policy_general(env, value_func, gamma, policy, max_iterations=int(1e3), tol=1e-3, is_sync=True, heuristics="ordered"):
     """Performs policy evaluation.
 
     Evaluates the value of a given policy.
@@ -239,15 +239,24 @@ def evaluate_policy_general(env, value_func, gamma, policy, max_iterations=int(1
       the value function converged.
     """
 
-    states = np.arange(len(value_func))
+    ordered_states = np.arange(len(value_func))
 
     num_steps = 0
+
     while True:
         num_steps += 1
         delta = 0
         if is_sync:
             new_val_func = np.array(value_func.copy())
-        for state in states:
+
+        if heuristics == "ordered":
+            heuristics_states = ordered_states
+        elif heuristics == "perm":
+            heuristics_states = np.random.permutation(ordered_states)
+        else:
+            raise NotImplemented
+
+        for state in heuristics_states:
             val = value_func[state]
             action_vals = []
 
@@ -302,7 +311,8 @@ def policy_iteration_general(env, gamma, max_iterations, tol, policy_type):
             optimal_value_func, eval_iter_steps = evaluate_policy_async_ordered(env, value_func=state_value_func, gamma=gamma,
                                                                                 policy=state_policy, max_iterations=max_iterations, tol=tol)
         elif policy_type == ASYNC_PERM:
-            raise NotImplemented
+            optimal_value_func, eval_iter_steps = evaluate_policy_async_randperm(env, value_func=state_value_func, gamma=gamma,
+                                                                                policy=state_policy, max_iterations=max_iterations, tol=tol)
         else:
             assert False
         total_policy_eval_steps += eval_iter_steps
@@ -399,9 +409,52 @@ def policy_iteration_async_randperm(env, gamma, max_iterations=int(1e3),
        Returns optimal policy, value function, number of policy
        improvement iterations, and number of value iterations.
     """
-    policy = np.zeros(env.nS, dtype='int')
-    value_func = np.zeros(env.nS)
-    return policy, value_func, 0, 0
+    return policy_iteration_general(env, gamma, max_iterations, tol, policy_type=ASYNC_PERM)
+
+
+
+def value_iteration_general(env, gamma, max_iterations=None, tol=None, is_sync=True, state_order="ordered"):
+    ordered_states = np.arange(env.nS)
+    actions = np.arange(env.nA)
+    value_func = np.zeros(env.nS)  # initialize value function
+    niters = 0
+    policy = np.zeros(env.nS, dtype=np.int)
+    while True:
+      niters += 1
+      delta = 0
+
+      if state_order == "ordered":
+        states = ordered_states
+      elif state_order == "perm":
+        states = np.random.permutation(ordered_states)
+
+      for state in states:
+        max_action_val = -np.inf
+        max_action = None
+        if is_sync:
+          new_value_func = np.array(value_func)
+        for action in actions:
+          new_value = 0
+          for p, nextstate, reward, _ in env.P[state][action]:
+            new_value += p * (reward + gamma * value_func[nextstate])
+            if max_action_val < new_value:
+              max_action_val = new_value
+              max_action = action
+
+        delta = max(delta, abs(max_action_val - value_func[state]))
+        if is_sync:
+          new_value_func[state] = max_action_val
+        else:
+          value_func[state] = max_action_val
+
+        # policy does not matter, always update regardless of sync or async
+        policy[state] = max_action 
+
+      if is_sync:
+        value_func = new_value_func
+      if delta < tol:
+        break
+    return value_func, niters, policy
 
 
 def value_iteration_sync(env, gamma, max_iterations=int(1e3), tol=1e-3):
@@ -424,8 +477,7 @@ def value_iteration_sync(env, gamma, max_iterations=int(1e3), tol=1e-3):
     np.ndarray, iteration
       The value function and the number of iterations it took to converge.
     """
-    value_func = np.zeros(env.nS)  # initialize value function
-    return value_func, 0
+    return value_iteration_general(env, gamma, max_iterations=max_iterations, tol=tol, is_sync=True, state_order="ordered")
 
 
 def value_iteration_async_ordered(env, gamma, max_iterations=int(1e3), tol=1e-3):
@@ -449,8 +501,7 @@ def value_iteration_async_ordered(env, gamma, max_iterations=int(1e3), tol=1e-3)
     np.ndarray, iteration
       The value function and the number of iterations it took to converge.
     """
-    value_func = np.zeros(env.nS)  # initialize value function
-    return value_func, 0
+    return value_iteration_general(env, gamma, max_iterations=max_iterations, tol=tol, is_sync=False, state_order="ordered")
 
 
 def value_iteration_async_randperm(env, gamma, max_iterations=int(1e3),
@@ -475,8 +526,7 @@ def value_iteration_async_randperm(env, gamma, max_iterations=int(1e3),
     np.ndarray, iteration
       The value function and the number of iterations it took to converge.
     """
-    value_func = np.zeros(env.nS)  # initialize value function
-    return value_func, 0
+    return value_iteration_general(env, gamma, max_iterations=max_iterations, tol=tol, is_sync=False, state_order="perm")
 
 
 def value_iteration_async_custom(env, gamma, max_iterations=int(1e3), tol=1e-3):
