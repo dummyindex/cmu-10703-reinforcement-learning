@@ -133,7 +133,7 @@ def evaluate_policy_async_ordered(env, value_func, gamma, policy, max_iterations
       The value for the given policy and the number of iterations till
       the value function converged.
     """
-
+    return evaluate_policy_general(env, value_func, gamma, policy, max_iterations, tol, is_sync=True, heuristics="ordered")
     
 
 
@@ -289,10 +289,13 @@ def evaluate_policy_general(env, value_func, gamma, policy, max_iterations=int(1
 def policy_iteration_general(env, gamma, max_iterations, tol, policy_type):
     """TODO """
     def init_value_func(env):
-        return np.random.sample(env.nS)
+        # return np.random.sample(env.nS)
+        return np.zeros(env.nS)
 
     def init_policy(env):
-        return np.random.randint(env.nA, size=env.nS)
+        # return np.random.randint(env.nA, size=env.nS)
+        return np.zeros(env.nS, dtype=int)
+
     state_value_func = init_value_func(env)
     state_policy = init_policy(env)  # prob=1 for policy entries
     print("state_value_func", state_value_func)
@@ -317,11 +320,12 @@ def policy_iteration_general(env, gamma, max_iterations, tol, policy_type):
         else:
             assert False
         total_policy_eval_steps += eval_iter_steps
+        state_value_func = optimal_value_func
+
         policy_stable, new_policy = improve_policy(
             env, gamma, value_func=state_value_func, policy=state_policy)
 
         state_policy = new_policy
-        state_value_func = optimal_value_func
         num_improvements += 1
         if policy_stable:
             break
@@ -436,10 +440,10 @@ def value_iteration_general(env, gamma, max_iterations=None, tol=None, is_sync=T
     niters = 0
     policy = np.zeros(env.nS, dtype=np.int)
     goal_state = get_goal_state(env)
+
     while True:
       niters += 1
       delta = 0
-
       if state_order == "ordered":
         states = ordered_states
       elif state_order == "perm":

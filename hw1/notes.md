@@ -15,7 +15,7 @@ TODO: shown in slides
 
 
 ## 1.3
+reward function: discussion
 
 custom algrithms
 
-sorted based on value function
