@@ -250,12 +250,13 @@ def evaluate_policy_general(env, value_func, gamma, policy, max_iterations=int(1
         if is_sync:
             new_val_func = np.array(value_func.copy())
 
+        # determine order of state updates by heuristics
         if heuristics == "ordered":
             heuristics_states = ordered_states
         elif heuristics == "perm":
             heuristics_states = np.random.permutation(ordered_states)
         else:
-            raise NotImplemented
+            raise NotImplementedError()
 
         for state in heuristics_states:
             val = value_func[state]
