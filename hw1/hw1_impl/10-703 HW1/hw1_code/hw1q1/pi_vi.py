@@ -437,12 +437,15 @@ def value_iteration_general(env, gamma, max_iterations=None, tol=None, is_sync=T
     ordered_states = np.arange(env.nS)
     actions = np.arange(env.nA)
     value_func = np.zeros(env.nS)  # initialize value function
-    niters = 0
     policy = np.zeros(env.nS, dtype=np.int)
+
+    niters = 0
     goal_state = get_goal_state(env)
 
     while True:
       niters += 1
+      if niters % 10000 == 0:
+        print("niters:", niters)
       delta = 0
       if state_order == "ordered":
         states = ordered_states
@@ -450,12 +453,12 @@ def value_iteration_general(env, gamma, max_iterations=None, tol=None, is_sync=T
         states = np.random.permutation(ordered_states)
       elif state_order == "manhattan":
         states = sorted(ordered_states, key=lambda s: manhatten_dist(s, goal_state, env.ncol))
-
+      if is_sync:
+        new_value_func = np.array(value_func.copy())
       for state in states:
         max_action_val = -np.inf
         max_action = None
-        if is_sync:
-          new_value_func = np.array(value_func)
+        
         for action in actions:
           new_value = 0
           for p, nextstate, reward, _ in env.P[state][action]:
@@ -472,11 +475,12 @@ def value_iteration_general(env, gamma, max_iterations=None, tol=None, is_sync=T
 
         # policy does not matter, always update regardless of sync or async
         policy[state] = max_action 
-
       if is_sync:
         value_func = new_value_func
+
       if delta < tol:
         break
+
     return value_func, niters, policy
 
 
