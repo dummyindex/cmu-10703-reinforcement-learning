@@ -107,13 +107,13 @@ class A2C(object):
 
         state_tensors = [torch.tensor(
                 state, requires_grad=True).float() for state in states]
-        log_probs = [torch.log(self.actor(state_tensor)[action]) for state_tensor, action in zip(state_tensors, actions)]
+        log_probs = torch.stack([torch.log(self.actor(state_tensor)[action]) for state_tensor, action in zip(state_tensors, actions)])
         
         # update actor/critic parameters
         if self.type == "Reinforce":      
             loss_per_t = [log_prob * G for log_prob, G in zip(log_probs, Gs)]
-            assert len(loss_per_t) == T
-            loss_theta = - torch.stack(loss_per_t).sum() / T
+            assert loss_per_t.shape[0] == T
+            loss_theta = - loss_per_t.sum() / T
             # print("loss_theta type: ", type(loss_theta))
             # print("loss_theta: {}".format(loss_theta))
             (loss_theta).backward()
