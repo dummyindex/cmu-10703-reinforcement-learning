@@ -25,5 +25,7 @@ class NeuralNet(torch.nn.Module):
         x = self.activation1(self.linear1(inputs))
         x = self.activation2(self.linear2(x))
         x = self.activation3(self.linear3(x))
+
+        # print("out act input x: {}".format(self.output_layer(x).shape))
         x = self.output_activation(self.output_layer(x))
         return x

@@ -46,9 +46,11 @@ class QNetwork():
     # and optimizers here, initialize your variables, or alternately compile your model here.
         pass
 
-    def save_model_weights(self, suffix):
+    def save_model_weights(self, suffix, model_file=None):
     # Helper function to save your model / weights.
         path = os.path.join(self.logdir, "model")
+        if model_file is None:
+
         torch.save(self.model.state_dict(), model_file)
         return path
 
@@ -65,16 +67,16 @@ class Replay_Memory():
 
     def __init__(self, memory_size=50000, burn_in=10000):
 
-    # The memory essentially stores transitions recorder from the agent
-    # taking actions in the environment.
+        # The memory essentially stores transitions recorder from the agent
+        # taking actions in the environment.
 
-    # Burn in episodes define the number of episodes that are written into the memory from the
-    # randomly initialized agent. Memory size is the maximum size after which old elements in the memory are replaced.
-    # A simple (if not the most efficient) was to implement the memory is as a list of transitions.
+        # Burn in episodes define the number of episodes that are written into the memory from the
+        # randomly initialized agent. Memory size is the maximum size after which old elements in the memory are replaced.
+        # A simple (if not the most efficient) was to implement the memory is as a list of transitions.
 
-    # Hint: you might find this useful:
-    # 		collections.deque(maxlen=memory_size)
-    pass
+        # Hint: you might find this useful:
+        # 		collections.deque(maxlen=memory_size)
+        pass
 
     def sample_batch(self, batch_size=32):
     # This function returns a batch of randomly sampled transitions - i.e. state, action, reward, next state, terminal flag tuples.

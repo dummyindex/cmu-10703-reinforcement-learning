@@ -6,6 +6,6 @@ six
 seaborn
 numpy
 scipy
-box2d-py
+box2d-py # brew install swig
 torch
 matplotlib
