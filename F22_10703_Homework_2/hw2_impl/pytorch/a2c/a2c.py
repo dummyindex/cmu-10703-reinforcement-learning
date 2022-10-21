@@ -108,6 +108,8 @@ class A2C(object):
         if self.type == "Reinforce":      
             self.actor_optimizer.zero_grad()          
             loss_per_t = log_probs * Gs
+            assert loss_per_t.shape[0] == T
+            
             loss_theta = - loss_per_t.sum() / T
             # print("loss_theta type: ", type(loss_theta))
             # print("loss_theta: {}".format(loss_theta))
@@ -118,6 +120,7 @@ class A2C(object):
             self.actor_optimizer.zero_grad()
             critic_returns = torch.tensor([self.critic(torch.tensor(state).float()) for state in states], requires_grad=True)
             loss_per_t = (Gs - critic_returns) * log_probs
+            assert loss_per_t.shape[0] == T
             loss_theta = - loss_per_t.sum() / T
             (loss_theta).backward() 
             self.actor_optimizer.step()
