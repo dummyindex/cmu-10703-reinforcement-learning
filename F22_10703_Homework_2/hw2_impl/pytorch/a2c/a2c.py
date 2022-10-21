@@ -26,8 +26,10 @@ class A2C(object):
         self.a2c = a2c
         self.actor_optimizer = torch.optim.Adam(
             self.actor.parameters(), lr=self.actor_lr)
-        self.critic_optimizer = torch.optim.Adam(
-            self.critic.parameters(), lr=self.critic_lr)
+        
+        if self.type == "Baseline" or self.type == "A2C":
+            self.critic_optimizer = torch.optim.Adam(
+                self.critic.parameters(), lr=self.critic_lr)
 
     def evaluate_policy(self, env):
         # TODO: Compute Accumulative trajectory reward(set a trajectory length threshold if you want)
@@ -36,7 +38,8 @@ class A2C(object):
         episode_reward = 0
         while not done:
             action = self.actor(torch.from_numpy(state).float())
-            action = torch.argmax(action).item()
+            # action = torch.argmax(action).item()
+            action = torch.distributions.Categorical(action).sample().item()
             state, reward, done, _ = env.step(action)
             episode_reward += reward
         return episode_reward
@@ -55,6 +58,7 @@ class A2C(object):
         # - a list of actions, indexed by time step
         # - a list of rewards, indexed by time step
         # TODO: Implement this method.
+        self.actor.eval()
         env.reset()
         cur_state = env.state
         states = []
@@ -83,9 +87,10 @@ class A2C(object):
         # TODO: Implement this method. It may be helpful to call the class
         #       method generate_episode() to generate training data.
         self.actor.train()
+        self.actor_optimizer.zero_grad()
         states, actions, rewards = self.generate_episode(env)
         T = len(states)
-        Gs = []
+        Gs = [] # returns
         G = 0
         for t in range(T-1, -1, -1):
             if self.type == "A2C":
@@ -102,22 +107,19 @@ class A2C(object):
 
         state_tensors = [torch.tensor(
                 state, requires_grad=True).float() for state in states]
-        log_probs = torch.tensor([torch.log(self.actor(state_tensor)[action]) for state_tensor, action in zip(state_tensors, actions)], requires_grad=True)
+        log_probs = [torch.log(self.actor(state_tensor)[action]) for state_tensor, action in zip(state_tensors, actions)]
         
         # update actor/critic parameters
         if self.type == "Reinforce":      
-            self.actor_optimizer.zero_grad()          
-            loss_per_t = log_probs * Gs
-            assert loss_per_t.shape[0] == T
-            
-            loss_theta = - loss_per_t.sum() / T
+            loss_per_t = [log_prob * G for log_prob, G in zip(log_probs, Gs)]
+            assert len(loss_per_t) == T
+            loss_theta = - torch.stack(loss_per_t).sum() / T
             # print("loss_theta type: ", type(loss_theta))
             # print("loss_theta: {}".format(loss_theta))
             (loss_theta).backward()
             self.actor_optimizer.step()
         elif self.type == "Baseline" or self.type == "A2C":
             # update policy net
-            self.actor_optimizer.zero_grad()
             critic_returns = torch.tensor([self.critic(torch.tensor(state).float()) for state in states], requires_grad=True)
             loss_per_t = (Gs - critic_returns) * log_probs
             assert loss_per_t.shape[0] == T
