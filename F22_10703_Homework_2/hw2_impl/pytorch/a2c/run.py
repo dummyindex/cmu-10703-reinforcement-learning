@@ -80,7 +80,7 @@ def main_a2c(args):
             policy_net = NeuralNet(nS, nA, out_activation)
             A2C_net = A2C(policy_net, lr, args.n,
                       nA, None, critic_lr, baseline=False, a2c=True, type=net_type)
-        elif net_type == 'Baseline':
+        elif net_type == 'Baseline' or net_type == 'A2C':
             policy_net = NeuralNet(nS, nA, out_activation)
             critic_net = NeuralNet(nS, 1, torch.nn.Identity(1, 1))
             A2C_net = A2C(policy_net, lr, args.n,
