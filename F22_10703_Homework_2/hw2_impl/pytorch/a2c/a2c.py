@@ -65,7 +65,6 @@ class A2C(object):
         actions = []
         rewards = []
         t = 0
-
         while True:
             action_probs = self.actor(torch.from_numpy(cur_state).float())
             # action = torch.argmax(action).item()
