@@ -49,10 +49,12 @@ class QNetwork():
         self.net = FullyConnectedModel(env.observation_space.shape[0], env.action_space.n)
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=lr)
         self.gamma = gamma
+        self.logdir = logdir
+        os.makedirs(self.logdir, exist_ok=True)
 
     def save_model_weights(self, suffix, model_file=None):
         # Helper function to save your model / weights.
-        path = os.path.join(self.logdir, "model")
+        path = self.logdir
         if model_file is None:
             model_file = os.path.join(path, "model_{}.pth".format(suffix))
         torch.save(self.net.state_dict(), model_file)
@@ -66,10 +68,10 @@ class QNetwork():
         # Optional Helper function to load model weights.
         self.net.load_state_dict(torch.load(weight_file))
 
-    def predict(self, state):
+    def predict(self, state) -> torch.Tensor:
         """Helper function to predict Q values of actions for a given state."""
         self.net.eval()
-        state = torch.from_numpy(state).float()
+        state = torch.from_numpy(np.array(state)).float()
         return self.net(state)
 
     def train(self, batch_x, Q_target: QNetwork):
@@ -81,10 +83,10 @@ class QNetwork():
         qvalues_self = []
         for sample in batch_x:
             state, action, reward, next_state, done = sample
-            state = torch.from_numpy(state).float()
-            next_state = torch.from_numpy(next_state).float()
-            action = torch.from_numpy(action).float()
-            reward = torch.from_numpy(reward).float()
+            state = torch.from_numpy(np.array(state)).float()
+            next_state = torch.from_numpy(np.array(next_state)).float()
+            # action = torch.from_numpy(np.array(action)).float()
+            reward = torch.from_numpy(np.array(reward)).float()
 
             y = None
             if done:
@@ -94,6 +96,8 @@ class QNetwork():
             ys.append(y)
             qvalues_self.append(self.predict(state)[action])
         
+        ys = torch.stack(ys)
+        qvalues_self = torch.stack(qvalues_self)
         loss = torch.nn.functional.mse_loss(qvalues_self, ys, reduction="mean")
         loss.backward()
         self.optimizer.step()
@@ -148,7 +152,7 @@ class DQN_Agent():
         self.env = gym.make(environment_name)
         self.logdir = os.path.join(os.getcwd(), "agent_logs")
         self.Qw = QNetwork(self.env, lr=qw_lr, logdir=self.logdir)
-        self.Q_target = QNetwork(self.env, lr=None, logdir=self.logdir)
+        self.Q_target = QNetwork(self.env, lr=qw_lr, logdir=self.logdir)
         self.memory = Replay_Memory()
         self.epsilon = epsilon
 
@@ -160,11 +164,11 @@ class DQN_Agent():
         if np.random.random() < self.epsilon:
             return self.env.action_space.sample()
         else:
-            return np.argmax(q_values)
+            return np.argmax(q_values.detach().numpy())
 
     def greedy_policy(self, q_values):
         # Creating greedy policy for test time.
-        return np.argmax(q_values)
+        return np.argmax(q_values.detach().numpy())
 
     def train_single_episode(self, max_episode_T=None):
         if max_episode_T is None:
@@ -182,19 +186,19 @@ class DQN_Agent():
             # Sample batch from memory
             batch = self.memory.sample_batch()
             # Train network on batch
-            self.Qw.train(batch)
+            self.Qw.train(batch, self.Q_target)
             # Update target network
             if t % self.w_target_interval == 0:
                 self.Q_target.load_model(self.Qw)
             cur_state = next_state
 
 
-    def train(self, num_episodes=1000, max_episode_T=None):
+    def train(self, num_episodes=200, max_episode_T=None):
         # In this function, we will train our network.
 
         # When use replay memory, you should interact with environment here, and store these
         # transitions to memory, while also updating your model.
-        for i in range(num_episodes):
+        for i in tqdm.tqdm(range(num_episodes)):
             self.train_single_episode(max_episode_T)
             if i % 50 == 0:
                 self.Qw.save_model_weights("episode_{}".format(i))
@@ -211,7 +215,7 @@ class DQN_Agent():
             cur_state = self.env.state
             action = self.env.action_space.sample()
             next_state, r, done, info = self.env.step(action)
-            new_memory_entry = (cur_state, action, r, next_state)
+            new_memory_entry = (cur_state, action, r, next_state, done)
             self.memory.append(new_memory_entry)
 
 # Note: if you have problems creating video captures on servers without GUI,
