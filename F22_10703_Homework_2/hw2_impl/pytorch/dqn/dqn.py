@@ -158,9 +158,8 @@ class DQN_Agent():
         self.Q_target = QNetwork(self.env, lr=qw_lr, logdir=self.logdir)
         self.memory = Replay_Memory()
         self.epsilon = epsilon
-
         self.w_target_interval = 50
-    
+        self.c = 0
 
     def epsilon_greedy_policy(self, q_values):
         # Creating epsilon greedy probabilities to sample from.
@@ -178,6 +177,7 @@ class DQN_Agent():
             max_episode_T = self.env.spec.max_episode_steps
         cur_state = self.env.reset()
         for t in range(max_episode_T):
+            cur_state = self.env.state
             # Sample action from epsilon greedy policy
             qvalues = self.Qw.predict(self.env.state)
             action = self.epsilon_greedy_policy(qvalues)
@@ -191,9 +191,9 @@ class DQN_Agent():
             # Train network on batch
             self.Qw.train(batch, self.Q_target)
             # Update target network
-            if t % self.w_target_interval == 0:
+            self.c += 1
+            if self.c % self.w_target_interval == 0:
                 self.Q_target.load_model(self.Qw)
-            cur_state = next_state
             if done:
                 break
 
@@ -206,6 +206,7 @@ class DQN_Agent():
 
         mean_rewards = []
         ks = []
+        self.c = 0
         for episode in tqdm.tqdm(range(num_episodes)):
             self.train_single_episode(max_episode_T)
             if episode % 10 == 0:
