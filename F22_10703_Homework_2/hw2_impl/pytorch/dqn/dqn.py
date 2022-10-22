@@ -6,6 +6,7 @@ import torch
 import collections
 import tqdm
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 class FullyConnectedModel(torch.nn.Module):
 
@@ -132,7 +133,7 @@ class Replay_Memory():
         if len(self.memory) > self.memory_size:
             self.memory.popleft()
 
-
+test_video = ...
 class DQN_Agent():
 
     # In this class, we will implement functions to do the following.
@@ -144,13 +145,15 @@ class DQN_Agent():
     # (4) Create a function to test the Q Network's performance on the environment.
     # (5) Create a function for Experience Replay.
 
-    def __init__(self, environment_name, render=False, qw_lr=5e-4, epsilon=0.05):
+    def __init__(self, environment_name, render=False, qw_lr=5e-4, epsilon=0.05, logdir=None):
 
         # Create an instance of the network itself, as well as the memory.
         # Here is also a good place to set environmental parameters,
         # as well as training parameters - number of episodes / iterations, etc.
         self.env = gym.make(environment_name)
-        self.logdir = os.path.join(os.getcwd(), "agent_logs")
+        self.logdir = logdir
+        if logdir is None:
+            self.logdir = os.path.join(os.getcwd(), "agent_logs")
         self.Qw = QNetwork(self.env, lr=qw_lr, logdir=self.logdir)
         self.Q_target = QNetwork(self.env, lr=qw_lr, logdir=self.logdir)
         self.memory = Replay_Memory()
@@ -191,17 +194,48 @@ class DQN_Agent():
             if t % self.w_target_interval == 0:
                 self.Q_target.load_model(self.Qw)
             cur_state = next_state
+            if done:
+                break
 
-
+        
     def train(self, num_episodes=200, max_episode_T=None):
         # In this function, we will train our network.
 
         # When use replay memory, you should interact with environment here, and store these
         # transitions to memory, while also updating your model.
-        for i in tqdm.tqdm(range(num_episodes)):
+
+        mean_rewards = []
+        ks = []
+        for episode in tqdm.tqdm(range(num_episodes)):
             self.train_single_episode(max_episode_T)
-            if i % 50 == 0:
-                self.Qw.save_model_weights("episode_{}".format(i))
+            if episode % 10 == 0:
+                self.Qw.save_model_weights("episode_{}".format(episode))
+                # test_video(self, self.env, episode)
+
+                eval_rewards = self.evaluate()
+                mean_reward = np.mean(eval_rewards)
+                print("Episode: {}, Mean Reward: {}".format(episode, mean_reward))
+                mean_rewards.append(mean_reward)
+                np.savetxt(Path(self.logdir) / "mean_rewards.txt", mean_rewards)
+
+        return mean_rewards
+
+    def evaluate_episode(self, env):
+        # TODO: Compute Accumulative trajectory reward(set a trajectory length threshold if you want)
+        state = env.reset()
+        done = False
+        episode_reward = 0
+        while not done:
+            action = self.greedy_policy(self.Qw.predict(state))
+            state, reward, done, info = env.step(action)
+            episode_reward += reward
+        return episode_reward
+
+    def evaluate(self, num_episodes=20, max_episode_T=None):
+        all_rewards = []
+        for i in range(num_episodes):
+            all_rewards.append(self.evaluate_episode(self.env))
+        return np.array(all_rewards)
 
     def test(self, model_file=None):
         # Evaluate the performance of your agent over 20 episodes, by calculating average cumulative rewards (returns) for the 20 episodes.
@@ -259,6 +293,28 @@ def main(args):
     environment_name = args.env
 
     # You want to create an instance of the DQN_Agent class here, and then train / test it.
+    
+    NUM_TRIALS = 5
+    res = []
+    logdir = Path("logs")
+    for trial in range(NUM_TRIALS):
+        agent_logdir = logdir / "trial_{}".format(trial)
+        agent = DQN_Agent(environment_name, args.lr, logdir=agent_logdir)
+        agent.burn_in_memory()
+        agent_mean_rewards = agent.train()
+        res.append(agent_mean_rewards)
+
+    ks = len(res[0]) 
+    res = np.array(res)
+    avs = np.mean(res, axis=0)
+    maxs = np.max(res, axis=0)
+    mins = np.min(res, axis=0)
+    plt.fill_between(ks, mins, maxs, alpha=0.1)
+    plt.plot(ks, avs, '-o', markersize=1)
+
+    plt.xlabel('Episode', fontsize=15)
+    plt.ylabel('Return', fontsize=15)
+    plt.savefig(os.path.join(self.logdir, 'return.png'))
 
 if __name__ == '__main__':
     main(sys.argv)
