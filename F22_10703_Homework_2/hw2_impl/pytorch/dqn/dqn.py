@@ -217,8 +217,9 @@ class DQN_Agent():
                 print("Episode: {}, Mean Reward: {}".format(episode, mean_reward))
                 mean_rewards.append(mean_reward)
                 np.savetxt(Path(self.logdir) / "mean_rewards.txt", mean_rewards)
+                ks.append(episode)
 
-        return mean_rewards
+        return ks, mean_rewards
 
     def evaluate_episode(self, env):
         # TODO: Compute Accumulative trajectory reward(set a trajectory length threshold if you want)
@@ -251,6 +252,8 @@ class DQN_Agent():
             next_state, r, done, info = self.env.step(action)
             new_memory_entry = (cur_state, action, r, next_state, done)
             self.memory.append(new_memory_entry)
+            if done:
+                self.env.reset()
 
 # Note: if you have problems creating video captures on servers without GUI,
 #       you could save and relaod model to create videos on your laptop.
@@ -301,10 +304,9 @@ def main(args):
         agent_logdir = logdir / "trial_{}".format(trial)
         agent = DQN_Agent(environment_name, args.lr, logdir=agent_logdir)
         agent.burn_in_memory()
-        agent_mean_rewards = agent.train()
+        ks, agent_mean_rewards = agent.train()
         res.append(agent_mean_rewards)
 
-    ks = len(res[0]) 
     res = np.array(res)
     avs = np.mean(res, axis=0)
     maxs = np.max(res, axis=0)
