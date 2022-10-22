@@ -94,10 +94,11 @@ class A2C(object):
         for t in range(T-1, -1, -1):
             if self.type == "A2C":
                 V_end = self.critic(torch.from_numpy(states[t + self.N]).float()) if t + self.N < T else 0
-                G = rewards[t] + gamma * V_end
+                G = 0
                 t_end = min(t + self.N, T)
                 for k in range(t, t_end):
                     G += gamma ** (k-t) * rewards[k]
+                G += gamma ** (t_end - t) * V_end
             else:
                 G = gamma * G + rewards[t]
             Gs.append(G)
