@@ -209,16 +209,16 @@ class DQN_Agent():
         for episode in tqdm.tqdm(range(num_episodes)):
             self.train_single_episode(max_episode_T)
             if episode % 10 == 0:
-                self.Qw.save_model_weights("episode_{}".format(episode))
                 # test_video(self, self.env, episode)
 
                 eval_rewards = self.evaluate()
                 mean_reward = np.mean(eval_rewards)
-                print("Episode: {}, Mean Reward: {}".format(episode, mean_reward))
+                # print("Episode: {}, Mean Reward: {}".format(episode, mean_reward))
                 mean_rewards.append(mean_reward)
                 np.savetxt(Path(self.logdir) / "mean_rewards.txt", mean_rewards)
                 ks.append(episode)
 
+        self.Qw.save_model_weights("model")
         return ks, mean_rewards
 
     def evaluate_episode(self, env):
@@ -304,7 +304,7 @@ def main(args):
         agent_logdir = logdir / "trial_{}".format(trial)
         agent = DQN_Agent(environment_name, args.lr, logdir=agent_logdir)
         agent.burn_in_memory()
-        ks, agent_mean_rewards = agent.train()
+        ks, agent_mean_rewards = agent.train(num_episodes=200)
         res.append(agent_mean_rewards)
 
     res = np.array(res)
@@ -316,7 +316,7 @@ def main(args):
 
     plt.xlabel('Episode', fontsize=15)
     plt.ylabel('Return', fontsize=15)
-    plt.savefig(os.path.join(self.logdir, 'return.png'))
+    plt.savefig(os.path.join(logdir, 'return.png'))
 
 if __name__ == '__main__':
     main(sys.argv)
