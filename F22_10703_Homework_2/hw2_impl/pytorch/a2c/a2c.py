@@ -38,8 +38,8 @@ class A2C(object):
         episode_reward = 0
         while not done:
             action = self.actor(torch.from_numpy(state).float())
-            # action = torch.argmax(action).item()
-            action = torch.distributions.Categorical(action).sample().item()
+            action = torch.argmax(action).item()
+            # action = torch.distributions.Categorical(action).sample().item()
             state, reward, done, _ = env.step(action)
             episode_reward += reward
         return episode_reward
@@ -111,7 +111,7 @@ class A2C(object):
         
         # update actor/critic parameters
         if self.type == "Reinforce":      
-            loss_per_t = [log_prob * G for log_prob, G in zip(log_probs, Gs)]
+            loss_per_t = log_probs * Gs
             assert loss_per_t.shape[0] == T
             loss_theta = - loss_per_t.sum() / T
             # print("loss_theta type: ", type(loss_theta))
