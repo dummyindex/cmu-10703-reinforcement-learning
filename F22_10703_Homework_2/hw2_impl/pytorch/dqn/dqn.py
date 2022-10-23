@@ -73,7 +73,7 @@ class QNetwork():
     def predict(self, state) -> torch.Tensor:
         """Helper function to predict Q values of actions for a given state."""
         self.net.eval()
-        state = torch.from_numpy(np.array(state)).float()
+        state = torch.tensor(state).float()
         return self.net(state)
 
     def train(self, batch_x, Q_target: QNetwork):
@@ -84,8 +84,8 @@ class QNetwork():
         qvalues_self = []
         for sample in batch_x:
             state, action, reward, next_state, done = sample
-            state = torch.from_numpy(np.array(state)).float()
-            next_state = torch.from_numpy(np.array(next_state)).float()
+            state = torch.tensor(state).float()
+            next_state = torch.tensor(next_state).float()
             # action = torch.from_numpy(np.array(action)).float()
             reward = torch.from_numpy(np.array(reward)).float()
 
@@ -96,7 +96,7 @@ class QNetwork():
                 y = reward + self.gamma * torch.max(Q_target.predict(next_state))
             ys.append(y)
             qvalues_self.append(self.predict(state)[action])
-        
+
         self.optimizer.zero_grad()
         ys = torch.stack(ys)
         qvalues_self = torch.stack(qvalues_self)
@@ -306,7 +306,7 @@ def main(args):
         agent_logdir = logdir / "trial_{}".format(trial)
         agent = DQN_Agent(environment_name, args.lr, logdir=agent_logdir)
         agent.burn_in_memory()
-        ks, agent_mean_rewards = agent.train(num_episodes=200)
+        ks, agent_mean_rewards = agent.train(num_episodes=200, max_episode_T=200)
         res.append(agent_mean_rewards)
 
     res = np.array(res)
