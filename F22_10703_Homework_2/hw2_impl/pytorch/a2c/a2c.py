@@ -91,6 +91,8 @@ class A2C(object):
         T = len(states)
         Gs = [] # returns
         G = 0
+        
+        # loop from backward to optimize Reinforce case (second branch below)
         for t in range(T-1, -1, -1):
             if self.type == "A2C":
                 V_end = self.critic(torch.from_numpy(states[t + self.N]).float()) if t + self.N < T else 0
@@ -119,16 +121,18 @@ class A2C(object):
             (loss_theta).backward()
             self.actor_optimizer.step()
         elif self.type == "Baseline" or self.type == "A2C":
-            self.critic_optimizer.zero_grad()
+            
             # update policy net
             critic_returns = torch.stack([self.critic(torch.tensor(state).float()) for state in states])
             loss_per_t = (Gs - critic_returns) * log_probs
-            assert loss_per_t.shape[0] == T
-            loss_theta = - loss_per_t.sum() / T
-            (loss_theta).backward(retain_graph=True) 
+            # assert loss_per_t.shape[0] == T
+
+            loss_theta = -loss_per_t.sum() / T
+            (loss_theta).backward(retain_graph=True) # retain graph for autograd, or backward below for critic optimizer will compain about graph info has been delepeted/cleaned in the first backward.
             self.actor_optimizer.step()
 
             # update critic baseline
+            self.critic_optimizer.zero_grad()
             loss_w = (Gs - critic_returns).pow(2).sum() / T
             loss_w.backward()
             self.critic_optimizer.step()
