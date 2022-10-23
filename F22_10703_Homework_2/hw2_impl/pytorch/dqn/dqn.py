@@ -48,6 +48,7 @@ class QNetwork():
     # Define your network architecture here. It is also a good idea to define any training operations
     # and optimizers here, initialize your variables, or alternately compile your model here.
         self.net = FullyConnectedModel(env.observation_space.shape[0], env.action_space.n)
+        self.lr = lr
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=lr)
         self.gamma = gamma
         self.logdir = logdir
@@ -78,7 +79,6 @@ class QNetwork():
     def train(self, batch_x, Q_target: QNetwork):
         """Helper function to train your model on a given batch of experience replay samples."""
         self.net.train()
-        self.optimizer.zero_grad()
         
         ys = []
         qvalues_self = []
@@ -97,6 +97,7 @@ class QNetwork():
             ys.append(y)
             qvalues_self.append(self.predict(state)[action])
         
+        self.optimizer.zero_grad()
         ys = torch.stack(ys)
         qvalues_self = torch.stack(qvalues_self)
         loss = torch.nn.functional.mse_loss(qvalues_self, ys, reduction="mean")
@@ -177,7 +178,6 @@ class DQN_Agent():
             max_episode_T = self.env.spec.max_episode_steps
         cur_state = self.env.reset()
         for t in range(max_episode_T):
-            cur_state = self.env.state
             # Sample action from epsilon greedy policy
             qvalues = self.Qw.predict(self.env.state)
             action = self.epsilon_greedy_policy(qvalues)
@@ -194,10 +194,11 @@ class DQN_Agent():
             self.c += 1
             if self.c % self.w_target_interval == 0:
                 self.Q_target.load_model(self.Qw)
+                self.c = 0
             if done:
                 break
+            cur_state = next_state
 
-        
     def train(self, num_episodes=200, max_episode_T=None):
         # In this function, we will train our network.
 

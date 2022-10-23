@@ -38,8 +38,8 @@ class A2C(object):
         episode_reward = 0
         while not done:
             action = self.actor(torch.from_numpy(state).float())
-            action = torch.argmax(action).item()
-            # action = torch.distributions.Categorical(action).sample().item()
+            # action = torch.argmax(action).item()
+            action = torch.distributions.Categorical(action).sample().item()
             state, reward, done, _ = env.step(action)
             episode_reward += reward
         return episode_reward
