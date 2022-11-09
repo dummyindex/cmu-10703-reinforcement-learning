@@ -484,7 +484,8 @@ def run_GCBC(env, mode='relabel', num_seeds=5, num_iters=150, num_epochs=2, batc
 			loss_vec.append(loss)
 			acc_vec.append(acc)
 			succ_vec.append(succ)
-			# print(e, round(loss,3), round(acc,3), succ)
+			if e %10 == 0:
+				print("iter: %d, loss: %.4f, acc: %.4f, succ: %.4f" % (e, loss, acc, succ))
 		loss_vecs.append(loss_vec)
 		acc_vecs.append(acc_vec)
 		succ_vecs.append(succ_vec)
