@@ -2,7 +2,6 @@ import torch
 from torch.utils.data import TensorDataset, Dataset, DataLoader
 import numpy as np
 
-
 class FullyConnectedModel(torch.nn.Module):
 	def __init__(self, input_dim=4, output_dim=2):
 		super().__init__()
@@ -17,8 +16,17 @@ class FullyConnectedModel(torch.nn.Module):
 		# the network has not applied a softmax to the output.
 		# END
 
+		hidden_dim = 10
+		self.fc_0 = torch.nn.Linear(input_dim, hidden_dim)
+		self.tanh = torch.nn.Tanh()
+		self.fc_1 = torch.nn.Linear(hidden_dim, output_dim)
+
 	def forward(self, x):
 		# WRITE CODE HERE
+		# END
+		x = self.fc_0(x)
+		x = self.tanh(x)
+		x = self.fc_1(x)
 		return x
 
 
