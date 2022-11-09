@@ -41,7 +41,7 @@ __pycache__/
 *.h5ad
 
 # always-ignore notebooks
-*.ipynb
+# *.ipynb
 
 # OS or Editor files and folders
 .DS_Store

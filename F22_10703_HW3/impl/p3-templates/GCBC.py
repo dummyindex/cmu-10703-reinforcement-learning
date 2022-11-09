@@ -214,6 +214,7 @@ def compute_shortest_path(env: FourRooms, start=None, goal=None):
 			if _map[s_next[0], s_next[1]] and not visited[s_next[0], s_next[1]]:
 				bfs_queue.append((states + [s_next], actions + [a]))
 				visited[s_next[0], s_next[1]] = True
+	# in four rooms, there is always a path; if not, check env.T setting.
 	assert done, "goal not reached"
 	return np.array(shortest_traj, dtype=int), np.array(shortest_action, dtype=int)
 
@@ -249,7 +250,7 @@ def shortest_path_expert(env: FourRooms, render=False):
 
 class GCBC:
 
-	def __init__(self, env, expert_trajs, expert_actions):
+	def __init__(self, env, expert_trajs, expert_actions, num_workers=1):
 		self.env = env
 		self.expert_trajs = expert_trajs
 		self.expert_actions = expert_actions
@@ -258,7 +259,7 @@ class GCBC:
 		# state_dim + goal_dim = 4
 		# action_choices = 4
 		self.model_optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-
+		self.num_workers = num_workers
 	def generate_behavior_cloning_data(self):
 		# training state should be a concatenation of state and goal
 		self._train_states = []
@@ -280,6 +281,11 @@ class GCBC:
 		self._train_actions = []
 
 		# WRITE CODE HERE
+		for traj, actions in zip(self.expert_trajs, self.expert_actions):
+			for idx in range(len(actions)):
+				for relabeled_goal in traj[idx+1:]:
+					self._train_states.append(np.concatenate([traj[idx], relabeled_goal]))
+					self._train_actions.append(actions[idx])
 		# END
 
 		self._train_states = np.array(self._train_states).astype(np.float) # size: (*, 4)
@@ -302,7 +308,7 @@ class GCBC:
 		# WRITE CODE HERE
 		# END
 		dataset = GCDataset(self._train_states, self._train_actions)
-		dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+		dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=self.num_workers)
 		for epoch in range(num_epochs):
 			epoch_loss = 0
 			epoch_acc = 0
@@ -379,9 +385,8 @@ def generate_random_trajs():
 	# train GCBC based on the previous code
 	# WRITE CODE HERE
 
-def run_GCBC(expert_trajs, expert_actions, env, mode = 'relabel'):
+def run_GCBC(expert_trajs, expert_actions, env, mode = 'relabel', num_seeds=5, num_iters=150, num_epochs=2, batch_size=256, num_workers=1):
 	# mode = 'vanilla'
-	num_seeds = 5
 	loss_vecs = []
 	acc_vecs = []
 	succ_vecs = []
@@ -394,14 +399,14 @@ def run_GCBC(expert_trajs, expert_actions, env, mode = 'relabel'):
 		succ_vec = []
 		# generate new set of trajectories
 		# obtain either expert or random trajectories
-		gcbc = GCBC(env, expert_trajs, expert_actions)
+		gcbc = GCBC(env, expert_trajs, expert_actions, num_workers=num_workers)
 		if mode == 'vanilla':
 			gcbc.generate_behavior_cloning_data()
 		else:
 			gcbc.generate_relabel_data()
-
-		for e in tqdm(range(150)):
-			loss, acc = gcbc.train(num_epochs=20)
+		print("total train samples:", len(gcbc._train_states))
+		for e in tqdm(range(num_iters)):
+			loss, acc = gcbc.train(num_epochs=num_epochs, batch_size=batch_size)
 			succ = evaluate_gc(env, gcbc_policy(gcbc))
 			loss_vec.append(loss)
 			acc_vec.append(acc)
@@ -418,8 +423,12 @@ def run_GCBC(expert_trajs, expert_actions, env, mode = 'relabel'):
 	### Plot the results
 	from scipy.ndimage import uniform_filter
 	# you may use uniform_filter(succ_vec, 5) to smooth succ_vec
-	plt.figure(figsize=(12, 3))
+	# plt.figure(figsize=(12, 3))
+	figure, axes = plt.subplots(1, 3, figsize=(12, 3))
 	# WRITE CODE HERE
+	for ax, vec, title in zip(axes, [loss_vec, acc_vec, succ_vec], ['loss', 'acc', 'succ']):
+		ax.plot(vec)
+		ax.set_title(title)
 	# END
 	plt.savefig('p2_gcbc_%s.png' % mode, dpi=300)
 	plt.show()
