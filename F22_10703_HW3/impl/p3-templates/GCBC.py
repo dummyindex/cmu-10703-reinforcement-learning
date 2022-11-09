@@ -1,4 +1,5 @@
-from collections import OrderedDict 
+from collections import OrderedDict, deque
+from typing import Tuple 
 import gym
 from gym import spaces
 import matplotlib.pyplot as plt
@@ -6,6 +7,7 @@ import numpy as np
 import random
 from queue import Queue
 # Import make_model here from the approptiate model_*.py file
+from model_pytorch import make_model
 # This model should be the same as problem 2
 
 ### 2.1 Build Goal-Conditioned Task
@@ -57,7 +59,7 @@ class FourRooms:
 					bbox_inches='tight', pad_inches=0.1, dpi=300)
 		plt.show()
 	
-	def sample_sg(self):
+	def sample_sg(self) -> Tuple[np.array, np.array]:
 		# sample s
 		while True:
 			s = [np.random.randint(self.total_l), 
@@ -107,9 +109,12 @@ class FourRooms:
 		assert self.action_space.contains(a)
 
 		# WRITE CODE HERE
+		self.s = self.s + self.act_set[a]
+		assert self.map[self.s[0], self.s[1]], "step into a wall?!"
+		done = np.allclose(self.s, self.g)
 		# END
 		
-		return self._obs(), 0.0, done, info
+		return self._obs(), 0.0, done, "succ" if done else "fail"
 
 	def _obs(self):
 		return np.concatenate([self.s, self.g])
@@ -144,7 +149,38 @@ def test_step(env):
 			bbox_inches='tight', pad_inches=0.1, dpi=300)
 	plt.show()
 
-def shortest_path_expert(env):
+
+
+def compute_shortest_path(env: FourRooms, start=None, goal=None):
+	shortest_traj = None
+	shortest_action = None
+	visited = np.zeros(env.map.shape, dtype=bool)
+	if start is None or goal is None:
+		start, goal = env.s, env.g
+	_map = env.map
+	_act_set = env.act_set
+	# act_map = env.act_map
+
+	done = False
+	bfs_queue = deque()
+	bfs_queue.append(([start], []))
+	while len(bfs_queue) > 0:
+		states, actions = bfs_queue.popleft()
+		cur_s = states[-1]
+		if np.allclose(cur_s, goal):
+			done = True
+			shortest_traj = states
+			shortest_action = actions
+			break
+		for a in range(4):
+			s_next = cur_s + _act_set[a]
+			if _map[s_next[0], s_next[1]] and not visited[s_next[0], s_next[1]]:
+				bfs_queue.append((states + [s_next], actions + [a]))
+				visited[s_next[0], s_next[1]] = True
+	assert done, "goal not reached"
+	return np.array(shortest_traj, dtype=int), np.array(shortest_action, dtype=int)
+
+def shortest_path_expert(env: FourRooms, render=False):
 	""" 
 	Implement a shortest path algorithm and collect N trajectories for N goal reaching tasks
 	"""
@@ -153,6 +189,11 @@ def shortest_path_expert(env):
 	expert_actions = []
 
 	# WRITE CODE HERE
+	for i in range(N):
+		env.reset()
+		traj, actions = compute_shortest_path(env)
+		expert_trajs.append(traj)
+		expert_actions.append(actions)
 	# END
 	# You should obtain expert_trajs, expert_actions from search algorithm
 
@@ -164,7 +205,8 @@ def shortest_path_expert(env):
 	# Plot a subset of expert state trajectories
 	plt.savefig('p2_expert_trajs.png', 
 			bbox_inches='tight', pad_inches=0.1, dpi=300)
-	plt.show()
+	if render:
+		plt.show()
 	return expert_trajs, expert_actions
 
 
@@ -238,6 +280,7 @@ def generate_gc_episode(env, policy):
 	done = False
 	state = env.reset()
 	while not done:
+		pass
 		# WRITE CODE HERE
 		# END
 	return info
@@ -307,6 +350,21 @@ def run_GCBC():
 # build env
 l, T = 5, 30
 env = FourRooms(l, T)
+env.reset()
+print("env action space: ", env.action_space)
+print("env map: ", env.map)
+env.s = np.array([1, 1], dtype=int)
+env.g = np.array([0, 8], dtype=int)
+print("env sample goal", env.g)
+print("env sample state", env.s)
+
+# test shortest traj
+# shortest_traj, shortest_actions = compute_shortest_path(env)
+# print("shortest_traj: ", shortest_traj)
+# print("shortest_actions: ", shortest_actions)
+# shortest_path_expert(env, render=True)
+
 ### Visualize the map
-env.render_map()
+
+# env.render_map()
 # run_GCBC()
