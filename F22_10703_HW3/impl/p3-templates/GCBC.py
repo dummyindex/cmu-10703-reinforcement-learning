@@ -311,23 +311,29 @@ class GCBC:
 		self._train_states = np.array(self._train_states).astype(np.float) # size: (*, 4)
 		self._train_actions = np.array(self._train_actions) # size: (*, )
 		
-	def generate_random_policy_relabel_data(self):
+	def generate_random_policy_relabel_data(self, relabel_one_future=True):
 		self._train_states = []
 		self._train_actions = []
 		
 		# WRITE CODE HERE
 		for traj, actions, goals in zip(self.expert_trajs, self.expert_actions, self.expert_original_goals):
 			for idx in range(len(actions)):
-
-				# state not reached case, add "far away" goal intentionally
-				if not np.allclose(traj[-1], goals[idx]):
-					goal = goals[idx]
-					self._train_states.append(np.concatenate([traj[idx], goal]))
-					self._train_actions.append(actions[idx])
-				
-				for relabeled_goal in traj[idx+1:]:
+				if not relabel_one_future:
+					# state not reached case, add "far away" goal intentionally
+					if not np.allclose(traj[-1], goals[idx]):
+						goal = goals[idx]
+						self._train_states.append(np.concatenate([traj[idx], goal]))
+						self._train_actions.append(actions[idx])
+					
+					for relabeled_goal in traj[idx+1:]:
+						self._train_states.append(np.concatenate([traj[idx], relabeled_goal]))
+						self._train_actions.append(actions[idx])
+				else:
+					chosen_idx = np.random.choice(np.arange(idx + 1, len(traj)))
+					relabeled_goal = traj[chosen_idx]
 					self._train_states.append(np.concatenate([traj[idx], relabeled_goal]))
 					self._train_actions.append(actions[idx])
+
 		# END
 		self._train_states = np.array(self._train_states).astype(np.float) # size: (*, 4)
 		self._train_actions = np.array(self._train_actions) # size: (*, )
@@ -420,17 +426,17 @@ def generate_random_trajs(env, N=1000):
 
 	# WRITE CODE HERE
 	for _ in range(N):
-		traj = []
 		actions = []
 		goals = []
 		done = False
 		s_g = env.reset()
+		traj = [s_g[:2]]
 		while not done:
 			action = env.action_space.sample()
 			s_g, reward, done, goal_reached = env.step(action)
 			traj.append(s_g[:2])
-			actions.append(action)
 			goals.append(s_g[2:])
+			actions.append(action)
 		random_trajs.append(traj)
 		random_actions.append(actions)
 		random_goals.append(goals)
@@ -441,7 +447,7 @@ def generate_random_trajs(env, N=1000):
 	# WRITE CODE HERE
 	return random_trajs, random_actions, random_goals
 
-def run_GCBC(env, mode='relabel', num_seeds=5, num_iters=150, num_epochs=2, batch_size=256, num_workers=1):
+def run_GCBC(env, mode='relabel', num_seeds=5, num_iters=150, num_epochs=2, batch_size=256, num_workers=1, relabel_one_future=True):
 	# mode = 'vanilla'
 	loss_vecs = []
 	acc_vecs = []
@@ -472,7 +478,7 @@ def run_GCBC(env, mode='relabel', num_seeds=5, num_iters=150, num_epochs=2, batc
 		elif mode == 'random_vanilla':
 			gcbc.generate_random_policy_vanilla_data()
 		elif mode == 'random_relabel':
-			gcbc.generate_random_policy_relabel_data()
+			gcbc.generate_random_policy_relabel_data(relabel_one_future=relabel_one_future)
 		else:
 			raise NotImplementedError()
 		dataset = gcbc.gen_dataset()
