@@ -278,7 +278,7 @@ class GCBC:
 		self._train_states = np.array(self._train_states).astype(np.float) # size: (*, 4)
 		self._train_actions = np.array(self._train_actions) # size: (*, )
 		
-	def generate_relabel_data(self):
+	def generate_relabel_data(self, relabel_one_future=True):
 		# apply expert data goal relabelling trick
 		self._train_states = []
 		self._train_actions = []
@@ -286,9 +286,15 @@ class GCBC:
 		# WRITE CODE HERE
 		for traj, actions in zip(self.expert_trajs, self.expert_actions):
 			for idx in range(len(actions)):
-				for relabeled_goal in traj[idx+1:]:
+				if relabel_one_future:
+					chosen_idx = np.random.choice(np.arange(idx + 1, len(traj)))
+					relabeled_goal = traj[chosen_idx]
 					self._train_states.append(np.concatenate([traj[idx], relabeled_goal]))
 					self._train_actions.append(actions[idx])
+				else: 
+					for relabeled_goal in traj[idx+1:]:
+						self._train_states.append(np.concatenate([traj[idx], relabeled_goal]))
+						self._train_actions.append(actions[idx])
 		# END
 
 		self._train_states = np.array(self._train_states).astype(np.float) # size: (*, 4)
@@ -474,7 +480,7 @@ def run_GCBC(env, mode='relabel', num_seeds=5, num_iters=150, num_epochs=2, batc
 		if mode == 'vanilla':
 			gcbc.generate_behavior_cloning_data()
 		elif mode == 'relabel':
-			gcbc.generate_relabel_data()
+			gcbc.generate_relabel_data(relabel_one_future=relabel_one_future)
 		elif mode == 'random_vanilla':
 			gcbc.generate_random_policy_vanilla_data()
 		elif mode == 'random_relabel':
@@ -485,6 +491,12 @@ def run_GCBC(env, mode='relabel', num_seeds=5, num_iters=150, num_epochs=2, batc
 		dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=gcbc.num_workers)
 		print("total train samples:", len(gcbc._train_states))
 		for e in tqdm(range(num_iters)):
+
+			# # relabeling at after each iters? No effect on results
+			# if mode == 'random_relabel':
+			# 	gcbc.generate_random_policy_relabel_data(relabel_one_future=relabel_one_future)
+			# elif mode == 'relabel':
+			# 	gcbc.generate_relabel_data(relabel_one_future=relabel_one_future)
 			loss, acc = gcbc.train(dataloader, num_epochs=num_epochs, batch_size=batch_size)
 			succ = evaluate_gc(env, gcbc_policy(gcbc))
 			loss_vec.append(loss)
@@ -505,14 +517,16 @@ def run_GCBC(env, mode='relabel', num_seeds=5, num_iters=150, num_epochs=2, batc
 	# you may use uniform_filter(succ_vec, 5) to smooth succ_vec
 	# plt.figure(figsize=(12, 3))
 	smoothed_succ_vec = uniform_filter(succ_vec, 5)
-	figure, axes = plt.subplots(1, 3, figsize=(32, 6))
+	figure, axes = plt.subplots(2, 2, figsize=(32, 32))
+	flattened_axes = [axes[i, j] for i in range(2) for j in range(2)]
 	# WRITE CODE HERE
-	for ax, vec, title in zip(axes, [loss_vec, acc_vec, succ_vec, smoothed_succ_vec], ['loss', 'acc', 'succ', 'succ_smoothed']):
+	for ax, vec, title in zip(flattened_axes, [loss_vec, acc_vec, succ_vec, smoothed_succ_vec], ['loss', 'acc', 'succ', 'succ_smoothed']):
 		ax.plot(vec)
 		ax.set_title(title)
 		if title == "succ":
 			ax.set_ylim(0, 1)
 	# END
+	plt.title('p2_gcbc_%s.png' % mode)
 	plt.savefig('p2_gcbc_%s.png' % mode, dpi=300)
 	plt.show()
 
