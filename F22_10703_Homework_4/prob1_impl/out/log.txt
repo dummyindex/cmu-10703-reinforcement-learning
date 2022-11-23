@@ -1,0 +1,18 @@
+2022-11-23 09:30:48 run.py     INFO    : ### Q1.1.1: CEM (without MPC)
+2022-11-23 09:30:48 run.py     INFO    : Test episode 0
+2022-11-23 09:36:31 run.py     INFO    : ### Q1.1.1: CEM (without MPC)
+2022-11-23 09:36:31 run.py     INFO    : Test episode 0
+2022-11-23 09:36:49 run.py     INFO    : ### Q1.1.1: CEM (without MPC)
+2022-11-23 09:36:49 run.py     INFO    : Test episode 0
+2022-11-23 09:36:59 run.py     INFO    : ### Q1.1.1: CEM (without MPC)
+2022-11-23 09:36:59 run.py     INFO    : Test episode 0
+2022-11-23 09:37:07 run.py     INFO    : Test episode 9
+2022-11-23 09:37:15 run.py     INFO    : Test episode 19
+2022-11-23 09:37:23 run.py     INFO    : Test episode 29
+2022-11-23 09:37:33 run.py     INFO    : Test episode 39
+2022-11-23 09:37:41 run.py     INFO    : Test episode 49
+2022-11-23 09:37:42 run.py     INFO    : CEM PushingEnv: avg_reward: -15.72, avg_success: 0.88
+2022-11-23 09:37:42 run.py     INFO    : ### Q1.1.2: Random Policy (without MPC)
+2022-11-23 09:37:42 run.py     INFO    : Test episode 0
+2022-11-23 09:38:00 run.py     INFO    : Test episode 9
+2022-11-23 09:38:20 run.py     INFO    : Test episode 19

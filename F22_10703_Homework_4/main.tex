@@ -1,0 +1,284 @@
+\documentclass[12pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{minted}
+\usepackage{enumerate}
+\usepackage{fancyvrb}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{placeins}
+\usepackage{tikz}
+\usepackage{tikzsymbols}
+\setlength {\marginparwidth }{2cm} 
+\usepackage{todonotes}
+\usepackage[most]{tcolorbox}
+\usepackage{enumitem}
+\usepackage{wrapfig}
+\usepackage{algorithmicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\newcommand{\es}{\text{\color{orange}elite size}}
+
+\usetikzlibrary{positioning,calc}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\blackcircle}{\tikz\draw[black,fill=black] (0,0) circle (1ex);}
+\renewcommand{\circle}{\tikz\draw[black] (0,0) circle (1ex);}
+
+
+%-------------------------------------------------------------------------------
+% Custom commands
+\usepackage{xcolor} %hilight
+\newcommand{\hilight}[1]{\colorbox{yellow}{#1}}
+
+\newcommand{\TODO}[1]{\todo[color=blue!25, inline]{ TODO: #1} \index{To Do: !#1}}
+
+\newcommand{\SC}[1]{\todo[color=green!25, inline]{ Shreyas: #1} \index{Shreyas: !#1}}
+%-------------------------------------------------------------------------------
+
+%%BEGINSOLUTION
+% To delete solutions from the TeX file, do:
+% sed '/\%\%BEGINSOLUTION/,/\%\%ENDSOLUTION/d' main.tex > out.tex
+%%ENDSOLUTION
+\newtcolorbox[]{solution}[1][]{%
+    breakable,
+    enhanced,
+    colback=white,
+    title=Solution,
+    #1
+}
+
+
+\begin{document}
+
+\section*{}
+\begin{center}
+  \centerline{\textsc{\LARGE  Homework 4}}
+  \vspace{1em}
+  \textsc{\large CMU 10-703: Deep Reinforcement Learning (Fall 2022)} \\
+  \centerline{OUT: Nov. 7, 2022}
+  \centerline{DUE: Nov. 21, 2022 by 11:59pm ET}
+\end{center}
+
+\section*{Instructions: START HERE}
+\begin{itemize}
+\item \textbf{Collaboration policy:} You may work in groups of up to three people for this assignment. It is also OK to get clarification (but not solutions) from books or online resources after you have thought about the problems on your own.  You are expected to comply with the University Policy on Academic Integrity and Plagiarism\footnote{\url{https://www.cmu.edu/policies/}}.
+
+\item\textbf{Late Submission Policy:} You are allowed a total of 8 grace days for your homeworks. However, no more than 3 grace days may be applied to a single assignment. Any assignment submitted after 3 days will not receive any credit.  Grace days do not need to be requested or mentioned in emails; we will automatically apply them to students who submit late. We will not give any further extensions so make sure you only use them when you are absolutely sure you need them.  See the Assignments and Grading Policy here for more information about grace days and late submissions: \url{https://cmudeeprl.github.io/703website_f22/logistics/}
+
+\item\textbf{Submitting your work:} 
+
+\begin{itemize}
+
+% Since we are not using Canvas this semester.
+% \item \textbf{Canvas:} We will use an online system called Canvas for short answer and multiple choice questions. You can log in with your Andrew ID and password. (As a reminder, never enter your Andrew password into any website unless you have first checked that the URL starts with "https://" and the domain name ends in ".cmu.edu" -- but in this case it's OK since both conditions are met).  You may only \textbf{submit once} on canvas, so be sure of your answers before you submit.  However, canvas allows you to work on your answers and then close out of the page and it will save your progress.  You will not be granted additional submissions, so please be confident of your solutions when you are submitting your assignment.
+
+\item \textbf{Gradescope:} Please write your answers and copy your plots into the provided LaTeX template, and upload a PDF to the GradeScope assignment titled ``Homework 4.'' Additionally, upload your code to the GradeScope assignment titled ``Homework 4: Code.'' Each team should only upload one copy of each part. Regrade requests can be made within one week of the assignment being graded.
+\item \textbf{Autolab:} Autolab is not used for this assignment.
+
+\end{itemize}
+\end{itemize}
+
+\newpage
+
+% \section*{Problem 0: Collaborators}
+% Please list your name and Andrew ID, as well as those of your collaborators.
+
+\section*{Problem 1: Model-Based Reinforcement Learning with PETS (100 pts)}
+\ \\
+\textbf{Note}: You will need to install Box2D to run your code for this homework, which we included in \texttt{requirements\_conda.txt} and \texttt{requirements\_pip.txt}. However, to install Box2D with the requirements, you will need to install \texttt{swig} yourself. If you are on Mac, you can just run \texttt{brew install swig}. If you are on Windows, you will have to download and install swig and Microsoft Visual C++ (see this \href{https://stackoverflow.com/a/56277491}{stack overflow answer}.)
+\\ \\
+In previous homeworks, you implemented REINFORCE, N-Step A2C, and DQN, which are all model-free methods.  For this homework, you will implement a model-\textit{based} reinforcement learning (MBRL) method called \textbf{PETS} which stands for probabilistic ensemble and trajectory sampling \cite{chua2018deep}.  You will find the the original PETS paper to be very useful for this assignment, so we encourage you to read this paper thoroughly. An overview of MBRL with PETS is shown in Algorithm~\ref{pets}.
+
+\begin{algorithm}
+\label{alga2a}
+\caption{MBRL with PETS\label{pets}}
+\begin{algorithmic}[1]
+\Procedure{MBRL}{\# training iterations $K_{\text{train}}$}
+\State Initialize empty data array $D$ and initialize probabilistic ensemble (PE) of models.
+\State Sample 100 episodes from the environment using random actions and store into $D$. 
+\State Train PE for 10 steps using $D$.
+\State \textbf{repeat} for $K_{\text{train}}$ iterations:
+\State $\quad$ Sample $1$ episode using MPC and latest PE and add to $D$.
+\State $\quad$ Train PE for $1$ step using $D$.
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+There are 3 main components to MBRL with PETS: 
+\begin{enumerate}
+    \item Probabilistic ensemble of networks: you will be using probabilistic networks that output a distribution over resulting state given a state and action pair.  
+    \item Trajectory sampling: propagate hallucinated trajectories through time by passing hypothetical state-action pairs through different networks of the ensemble.  
+    \item Model predictive control: use the trajectory sampling method along with a cost function to perform planning and select good actions.
+\end{enumerate}
+
+We will go into more detail on each component below. You will not be required to implement all the components, but we recommend you read through each part before starting to code.
+
+\subsection*{Part 1: Probabilistic Ensemble}
+You are provided starter code in \texttt{model.py} that specifies that model architecture that you will be using for each member of the ensemble. In this homework an ensemble of 2 networks should be sufficient.  Specifically, each network is a fully connected network with 3-hidden layers, each with 400 hidden nodes.  If you have trouble running this network, a smaller network may work as well but may require additional hyperparameter tuning.  The starter code also includes a method for calculating the output of each network, which will return the mean and log variance of the next state distribution conditioned on a current state and action. We recommend using a diagonal log variance matrix for models in the PE.
+
+The loss that you should use to train each network for a minibatch of size $B$ is the negative log likelihood of the observed next states under the predicted mean and variance from the network, conditioned on the observed current states and actions (we recommend using $B=128$ and using Adam as the optimiser with learning rate 1e-3).
+
+The training routine for the ensemble is shown in Algorithm~\ref{train}.
+\begin{algorithm}
+\label{alga2b}
+\caption{Training the Probabilistic Ensemble}\label{train}
+\begin{algorithmic}[1]
+\Procedure{train\_step}{data $\mathcal{D}$, \# networks $N$, minibatch size $B$}
+% \State \textbf{for} $i$ in $1:K$:
+\State \textbf{for} $n$ in $1:N$: 
+\State $\quad$ Uniformly sample (with replacement) minibatch of size $B$ from $\mathcal{D}$
+\State $\quad$ Take a gradient step of the loss for sampled minibatch
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{Part 2: Trajectory Sampling}
+For your implementation of PETS, you will use the TS1 sampling method which is shown in Algorithm~\ref{ts1}.  Note that this algorithm only determines which networks will be used for which time steps to perform the state prediction.  It is only one component of model predictive control and will be combined with the model and action optimization method in the next section.  
+\begin{algorithm}
+\label{alga2c}
+\caption{Trajectory Sampling with TS1\label{ts1}}
+\begin{algorithmic}[1]
+\Procedure{TS1}{\# networks $N$, \# particles $P$, plan horizon $T$}
+\State Initialize array $S$ of dimension $P\times T$ to store network assignments for each particle.
+\State \textbf{for} $p$ in $1:P$:
+\State $\quad$ Randomly sample a sequence $s$ of length $T$ where each $s_i \in \mathcal{S}$ for $i \in \{1, \ldots, N\}$.
+\State $\quad$ Set $S[p,:] = s$.
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+You can think of this trajectory sampling method as returning $P$ particles that each represent a path of length $T$ where at each time step, a random network in the ensemble is used to generate the next state. 
+
+\subsection*{Part 3: Action Selection with Cross Entropy Method}
+In order to perform action selection, we need a cost function to evaluate the fitness of different states and action pairs.  Defining the right cost function is often the hardest part of getting model-based reinforcement learning to work, since the action selection and resulting trajectories from MPC depend on the cost function. Note that it is not appropriate to use the negative of the return for our problem as rewards are so sparse (we only receive rewards when the box reaches the goal). For this reason, we use surrogate costs (negative rewards) that are less sparse. For the \texttt{Pushing2D-v1} environment, you will be using the following cost function:
+\begin{equation}
+    \text{cost}(\textbf{pusher},\textbf{box},\textbf{goal}) =d(\textbf{pusher}, \textbf{box}) + 2d(\textbf{box}, \textbf{goal}) + 5\Big|\frac{x_\textbf{box}}{y_\textbf{box}} - \frac{x_\textbf{goal}}{y_\textbf{goal}}\Big|
+\end{equation}
+where $d$ denotes Euclidian distance and \textbf{pusher}, \textbf{box}, \textbf{goal} denote the tuples of $(x,y)$ coordinates of the pusher, box and goal at time $t$ respectively, and $x_\text{obj}$ denotes the $x$ coordinate of an object (similar for $y$). Feel free to play around with other cost functions to see if you can do better.
+
+We can now use TS1, along with the cost function, to estimate the cost of a particular action sequence $a_{1:T}$ from state $s_0$.  Let $TS$ be the output of TS1 for our settings of $N, P, T$ and let $s_{(p,t)} \sim \text{model}_{TS[p,t]}.\text{predict}(s_{(p, t-1)}, a_{t-1})$; that is, the next state for a given particle is the predicted state from the model indicated by $TS$ for the given particle and time step applied to the last state of the particle with the given action from $a_{1:T}$ (remember that we are using a probabilistic model so the output is a sample from a normal distribution).    We can now calculate the cost of a state and action sequence pair as the sum of the average of the cost over all particles:
+\begin{equation}\label{eq:cost}
+    \text{C}(a_{1:T}, s) = \frac{1}{P}\sum_{p=1}^P\sum_{t=1}^T \text{cost}(s_{(p,t)}) 
+\end{equation}
+where $s_{(p,t)}$ is calculated as described above.  
+
+Finally, we can optimize the action sequence with the cross entropy method (CEM). We have included a version of CEM which you are free to use.
+\begin{algorithm}
+\label{alga2d}
+\caption{CEM\label{cem}}
+\begin{algorithmic}[1]
+\Procedure{CEM}{population size $M$, \# elites $e$, \# CEM iters $K_{\text{CEM}}$, $\mu$, $\sigma$}
+\State Generate $M$ action sequences according to $\mu$ and $\sigma$ from normal distribution.
+\State \textbf{for} $i$ in $1:K_{\text{CEM}}$:
+\State $\quad$ \textbf{for} $m$ in $1:M$:
+\State $\quad\quad$ Calculate the cost of $a_{m,1:T}$ according to Equation~\ref{eq:cost}.
+\State $\quad$ Update $\mu$ and $\sigma$ using the top $e$ action sequences.  
+\State \textbf{return:} $\mu$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{Finally: Tying It All Together}
+The only missing piece left to implement Algorithm~\ref{pets} is line 6, i.e., how to sample an episode using MPC; this is shown in Algorithm~\ref{mpc}.  We proceed by starting with an initial $\mu$ and $\sigma$ and use that as input to CEM.  Then we take the updated $\mu$ from CEM and execute the action in the first time step in the environment to get a new state that we use for MPC in the next time step.  We then update the $\mu$ that is used for the next timestep to be the $\mu$ from CEM for the remaining steps in the plan horizon and initialize the last time step to 0.  Finally, we return all the state transitions gathered so that they can be appended to $D$. Please use a planning horizon of $T=5$.
+
+\begin{algorithm}
+\label{alga2e}
+\caption{Generating an episode using MPC\label{mpc}}
+\begin{algorithmic}[1]
+\Procedure{MPC}{\text{env}, plan horizon $T$}
+\State $\texttt{transitions} = []$
+\State $s$ = $\texttt{env.reset()}$
+\State $\mu$ = \textbf{0}, $\sigma$ = \textbf{1}
+\State \textbf{while} not done:
+\State $\quad \mu=$CEM(200, 20, 5, $\mu$, $\sigma$)
+\State $\quad a=\mu[0,:]$
+\State $\quad s' = \texttt{env.step(a)}$
+\State $\quad \texttt{transitions.append(}s, a, s'\texttt{)}$
+\State $\quad s = s'$
+\State $\quad \mu=\mu[1:T]\texttt{.append(}\textbf{0}\texttt{)}$
+\State $\textbf{return: } \texttt{transitions}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+Note that on line 11, $\mu[1:T]$ uses list indexing following Python indexing conventions (i.e. using zero indexing and not including $T$).
+For this homework, please respond to the prompts below:
+
+
+\subsection*{1.1: Model-based Predictive Control (30 pts)}
+
+Before you begin to implement, we recommend going through how \texttt{run.py} works in a top-down manner. See how each component of the code works toghether. For all the questions in 2.1, we provide the starter code in the \texttt{ExperimentGTDynamics} class in \texttt{run.py}.
+ 
+\begin{enumerate}
+    \item (10 pts) For this question, you need to implement \texttt{predict\_next\_state\_gt} functions in \texttt{mpc.py}. Then test CEM with the ground-truth dynamics on the Pushing2D-v1 environment. The CEM policy will also be used later for planning over a learned dynamics model. All the hyper-parameters are provided in the code. Report the percentage of success over 50 episodes.
+    
+    \item (10 pts) Instead of CEM, plan with random action sequences where each action is generated independently from a normal distribution $\mathcal N(0, 0.5I)$, where $I$ is an identity matrix. Use the same number of trajectories for planning as CEM, i.e. for each state, sample $M*K_{\text{CEM}}$ trajectories of length T and pick the best one. Report the percentage of success over 50 episodes. How does its performance compare to CEM?
+    
+    \item (10 pts) Which algorithm (MPC vs. open-loop control) would perform better on what environments? Why? Discuss the pros and cons of MPC.
+\end{enumerate}
+\subsection*{1.2: Single probabilistic network (40 pts)}
+Train a single probabilistic network on transitions from 1000 randomly sampled episodes. The loss that you should use to train each network is the negative log likelihood of the actual resulting state under the predicted distribution of the network. Specifically, Given state transition pairs $s_t, a_t, s_{t+1}$, we want to minimize the negative log probability of $s_{t+1}$ under the Gaussian distribution $\mathcal{N}(\mu_{\theta}(s_n,a_n),\Sigma_{\theta}(s_n,a_n))$, 
+    where $\mu_{\theta}$ and $\Sigma_{\theta}$ are outputs of the network. 
+
+\begin{enumerate}
+    \item (10 pts) Plot the loss vs. number of iterations trained for the single network.
+    
+    \item (12 pts) Combine your model with planning using randomly sampled actions. In \texttt{mpc.py}, implement \texttt{predict\_next\_state\_model} (vectorizing this will make a big difference). Evaluate the performance of your model when planning using a time horizon of 5 and 2000 possible action sequences.  Do this by reporting the percent successes on 50 episodes.
+    
+    \item (12 pts) Combine your model with planning using CEM.  Evaluate the performance of your model when planning using a time horizon of 5, a population of 200, 20 elites, and 5 CEM iterations.  Do this by reporting the percent successes on 50 episodes.
+    
+    \item (6 pts) Which planning method performs better, random or CEM?  How did MPC using this model perform in general?  When is the derived policy able to succeed and when does it fail?
+    
+\end{enumerate}
+\subsection*{1.3: MBRL with PETS (30 pts)}
+(Note that this section will take about 30 minutes on CPU and 15 minutes on GPU to generate the required results)
+\begin{enumerate}
+    \item (10 pts) Run Algorithm~\ref{pets} for 500 iterations (i.e., collect 100 initial episodes and then 500 episodes using MPC).  Plot the loss vs. the number of iterations trained.
+    
+    \item (10 pts) Every 50 iterations, test your model with MPC on 20 episodes and report the percent of successes.  Plot this as a function of the number of iterations of PETS.
+    
+    \item (10 pts) What are some limitations of MBRL?  Under which scenarios would you prefer MBRL to policy gradient methods like the ones you implemented in the previous homeworks?
+\end{enumerate}
+
+
+
+% \begin{solution}
+% \centering
+% \begin{tabular}{c|c|c}
+%      & name & Andrew ID \\
+%      \hline
+%     You                 & \hspace{10em}  &   \hspace{6em}@andrew.cmu.edu \\
+%     Collaborator 1 (optional) & \hspace{10em} & \hspace{6em}@andrew.cmu.edu\\
+%     Collaborator 2 (optional) & \hspace{10em} & \hspace{6em}@andrew.cmu.edu\\
+% \end{tabular}
+% \end{solution}
+
+\newpage
+\section*{Feedback}
+
+\textbf{Feedback}: You can help the course staff improve the course by providing feedback. What was the most confusing part of this homework, and what would have made it less confusing?
+% \begin{solution}
+% \vspace{5em}
+% \end{solution}
+
+\vspace{2em}
+\noindent\textbf{Time Spent}: How many hours did you spend working on this assignment? Your answer will not affect your grade.
+% \begin{solution}
+% \begin{table}[H]
+%     \centering
+%     \begin{tabular}{r|c}
+%         Alone &  \hspace{3em} hours\\ \hline
+%         With classmates & \hspace{3em} hours \\ \hline
+%         At office hours & \hspace{3em} hours \\ \hline
+%     \end{tabular}
+% \end{table}
+% \end{solution}
+
+% \nocite{*}
+\bibliographystyle{plain}
+\bibliography{ref}
+
+
+
+\end{document}
