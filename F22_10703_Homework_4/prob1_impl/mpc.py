@@ -148,9 +148,9 @@ class MPC:
         # Next state = delta sampled from model prediction + CURRENT state!
         # TS1 selection
         self.model.eval()
-        action_tile_factor = states.shape[0] // actions.shape[0]
+        action_repeat_factor = states.shape[0] // actions.shape[0]
         assert states.shape[0] % actions.shape[0] == 0
-        actions = np.tile(actions, [action_tile_factor, 1])
+        actions = np.repeat(actions, action_repeat_factor, axis=0)
         selected_model_idx = np.random.choice(self.model.num_nets)
         selected_model = self.model.networks[selected_model_idx]
 
