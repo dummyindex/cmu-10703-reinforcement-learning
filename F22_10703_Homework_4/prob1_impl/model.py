@@ -6,6 +6,8 @@ import operator
 from functools import reduce
 from utils.util import ZFilter
 import torch.nn.functional as F
+from tqdm import tqdm
+
 
 HIDDEN1_UNITS = 400
 HIDDEN2_UNITS = 400
@@ -98,22 +100,37 @@ class PENN(nn.Module):
         # TODO: write your code here
         self.train()
         step_avg_loss = []
-        for iter in range(num_train_itrs):
-            for i in range(0, inputs.shape[0], batch_size):
-                batch_inputs = torch.Tensor(inputs[i:i + batch_size]).float()
-                batch_targets = torch.Tensor(targets[i:i + batch_size]).float()
-                # means, vars = [], []
-                step_loss_temp = 0
-                for net in self.networks:
-                    net.zero_grad()
-                    raw_output = net(batch_inputs)
-                    mean, logvar = self.get_output(raw_output)
-                    loss = self.get_loss(batch_targets, mean, logvar)
-                    self.opt.zero_grad()
-                    loss.backward()
-                    self.opt.step()
-                    step_loss_temp += loss.item()
-                step_avg_loss.append(step_loss_temp / self.num_nets)
+        for iter in tqdm(range(num_train_itrs)):
+            # for i in tqdm(range(0, inputs.shape[0], batch_size)):
+            #     batch_inputs = torch.Tensor(inputs[i:i + batch_size]).float()
+            #     batch_targets = torch.Tensor(targets[i:i + batch_size]).float()
+            #     # means, vars = [], []
+            #     step_loss_temp = 0
+            #     for net in self.networks:
+            #         net.zero_grad()
+            #         raw_output = net(batch_inputs)
+            #         mean, logvar = self.get_output(raw_output)
+            #         loss = self.get_loss(batch_targets, mean, logvar)
+            #         self.opt.zero_grad()
+            #         loss.backward()
+            #         self.opt.step()
+            #         step_loss_temp += loss.item()
+            #     step_avg_loss.append(step_loss_temp / self.num_nets)
+            sample_indices = np.random.choice(inputs.shape[0], batch_size, replace=True)
+            batch_inputs = torch.Tensor(inputs[sample_indices]).float()
+            batch_targets = torch.Tensor(targets[sample_indices]).float()
+            step_loss_temp = 0
+            for net in self.networks:
+                net.zero_grad()
+                raw_output = net(batch_inputs)
+                mean, logvar = self.get_output(raw_output)
+                loss = self.get_loss(batch_targets, mean, logvar)
+                self.opt.zero_grad()
+                loss.backward()
+                self.opt.step()
+                step_loss_temp += loss.item()
+            step_avg_loss.append(step_loss_temp / self.num_nets)
+
         return step_avg_loss
 
         

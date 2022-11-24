@@ -155,7 +155,7 @@ class MPC:
         selected_model = self.model.networks[selected_model_idx]
 
         # TODO: discuss: whether to use clipped version (get output from model) during TS1 sampling?
-        model_input = torch.tensor(np.concatenate([states, actions], axis=1), dtype=torch.float32)
+        model_input = torch.tensor(np.concatenate([states, actions], axis=1)).float()
         particle_state_mean_logvar = selected_model(model_input)
         particle_state_mean_logvar = self.model.get_output(particle_state_mean_logvar)
 
