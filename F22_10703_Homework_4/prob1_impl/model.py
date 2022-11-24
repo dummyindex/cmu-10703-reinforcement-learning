@@ -59,10 +59,18 @@ class PENN(nn.Module):
         logvar = self.min_logvar + nn.functional.softplus(logvar - self.min_logvar)
         return mean, logvar
 
-    def get_loss(self, targ, mean, logvar):
+    def get_loss(self, target, mean, logvar):
+        """nll loss"""
         # TODO: write your code here
-
-        raise NotImplementedError
+        total_avg_loss = 0
+        for net_idx in range(self.num_nets):
+            # TODO: constant term: + 1/2 * log(2*pi)? necessary?
+            # scale by two (note we have logvar here)
+            loss = torch.sum(((target - mean[net_idx]) ** 2) / torch.exp(logvar[net_idx])\
+                + logvar[net_idx], dim=1)
+            loss = torch.mean(loss)
+            total_avg_loss += loss
+        return total_avg_loss / self.num_nets
 
     def create_network(self, n):
         layer_sizes = [self.state_dim + self.action_dim, HIDDEN1_UNITS, HIDDEN2_UNITS, HIDDEN3_UNITS]
@@ -83,5 +91,24 @@ class PENN(nn.Module):
 
         """
         # TODO: write your code here
+        step_avg_loss = []
+        for iter in range(num_train_itrs):
+            for i in range(0, inputs.shape[0], batch_size):
+                batch_inputs = torch.Tensor(inputs[i:i + batch_size]).float()
+                batch_targets = torch.Tensor(targets[i:i + batch_size]).float()
+                means, vars = [], []
+                for net in self.networks:
+                    raw_output = net(batch_inputs)
+                    mean, logvar = self.get_output(raw_output)
+                    means.append(mean)
+                    vars.append(logvar)
+                loss = self.get_loss(batch_targets, means, vars)
+                self.opt.zero_grad()
+                loss.backward()
+                self.opt.step()
+                step_avg_loss.append(loss.cpu().detach().numpy())
+        return step_avg_loss
 
-        raise NotImplementedError
+        
+
+        
