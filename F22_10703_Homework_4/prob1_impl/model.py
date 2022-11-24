@@ -5,6 +5,7 @@ import torch.nn as nn
 import operator
 from functools import reduce
 from utils.util import ZFilter
+import torch.nn.functional as F
 
 HIDDEN1_UNITS = 400
 HIDDEN2_UNITS = 400
@@ -60,17 +61,21 @@ class PENN(nn.Module):
         return mean, logvar
 
     def get_loss(self, target, mean, logvar):
-        """nll loss"""
+        """nll loss for a single network"""
         # TODO: write your code here
-        total_avg_loss = 0
-        for net_idx in range(self.num_nets):
-            # TODO: constant term: + 1/2 * log(2*pi)? necessary?
-            # scale by two (note we have logvar here)
-            loss = torch.sum(((target - mean[net_idx]) ** 2) / torch.exp(logvar[net_idx])\
-                + logvar[net_idx], dim=1)
-            loss = torch.mean(loss)
-            total_avg_loss += loss
-        return total_avg_loss / self.num_nets
+        # total_avg_loss = 0
+        # for net_idx in range(self.num_nets):
+        #     # TODO: constant term: + 1/2 * log(2*pi)? necessary?
+        #     # scale by two (note we have logvar here)
+        #     # loss = torch.sum(((target - mean[net_idx]) ** 2) / torch.exp(logvar[net_idx])\
+        #     #     + logvar[net_idx], dim=1)
+        #     # loss = torch.mean(loss)
+
+        #     loss = F.gaussian_nll_loss
+        #     total_avg_loss += loss
+        # return total_avg_loss / self.num_nets
+        loss = F.gaussian_nll_loss(mean, target, torch.exp(logvar))
+        return loss
 
     def create_network(self, n):
         layer_sizes = [self.state_dim + self.action_dim, HIDDEN1_UNITS, HIDDEN2_UNITS, HIDDEN3_UNITS]
@@ -85,28 +90,30 @@ class PENN(nn.Module):
         Training the Probabilistic Ensemble (Algorithm 2)
         Argument:
           inputs: state and action inputs. Assumes that inputs are standardized.
-          targets: resulting states
+          targets: delta states
         Return:
             List containing the average loss of all the networks at each train iteration
 
         """
         # TODO: write your code here
+        self.train()
         step_avg_loss = []
         for iter in range(num_train_itrs):
             for i in range(0, inputs.shape[0], batch_size):
                 batch_inputs = torch.Tensor(inputs[i:i + batch_size]).float()
                 batch_targets = torch.Tensor(targets[i:i + batch_size]).float()
-                means, vars = [], []
+                # means, vars = [], []
+                step_loss_temp = 0
                 for net in self.networks:
+                    net.zero_grad()
                     raw_output = net(batch_inputs)
                     mean, logvar = self.get_output(raw_output)
-                    means.append(mean)
-                    vars.append(logvar)
-                loss = self.get_loss(batch_targets, means, vars)
-                self.opt.zero_grad()
-                loss.backward()
-                self.opt.step()
-                step_avg_loss.append(loss.cpu().detach().numpy())
+                    loss = self.get_loss(batch_targets, mean, logvar)
+                    self.opt.zero_grad()
+                    loss.backward()
+                    self.opt.step()
+                    step_loss_temp += loss.item()
+                step_avg_loss.append(step_loss_temp / self.num_nets)
         return step_avg_loss
 
         

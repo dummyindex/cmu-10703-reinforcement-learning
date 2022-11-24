@@ -5,10 +5,10 @@ from cem import CEMOptimizer
 from randopt import RandomOptimizer
 import logging
 log = logging.getLogger('root')
-
+from model import PENN
 
 class MPC:
-    def __init__(self, env, plan_horizon, model, popsize, num_elites, max_iters,
+    def __init__(self, env, plan_horizon, model:PENN, popsize, num_elites, max_iters,
                  num_particles=6,
                  use_gt_dynamics=True,
                  use_mpc=True,
@@ -50,6 +50,7 @@ class MPC:
         # Initialize your planner with the relevant arguments.
         # Use different optimizers for cem and random actions respectively
         optimizer = RandomOptimizer if self.use_random_optimizer else CEMOptimizer
+        self.max_iters = max_iters
         self.optimizer = optimizer(
             self.get_action_cost,
             out_dim=self.plan_horizon * self.action_dim,
@@ -106,6 +107,8 @@ class MPC:
         popsize = np.shape(ac_seqs)[0]
         # One cost per member of population per particle
         total_costs = np.zeros([popsize, self.num_particles])
+
+        # Ke: note newaxis for curr_obs below
         cur_obs = np.tile(self.curr_obs[None], [popsize * self.num_particles, 1])
 
         # ac_seqs.shape: (popsize, T x |A|),
@@ -131,19 +134,39 @@ class MPC:
     def predict_next_state_model(self, states, actions):
         """ 
         Given a list of state action pairs, use a single learned dynamics model to predict the next state.
-            :param states  : [self.popsize * self.num_particles, self.state_dim]
+            :param states  : [INCORRECT][self.popsize * self.num_particles, self.state_dim]
             :param actions : [self.popsize, self.action_dim]
-
+        TODO " for each member of the population, all particles should get the same action."
+        https://piazza.com/class/l6ux8qcfetf38o/post/403
         Trajectory Sampling with TS1 (Algorithm 3) using an ensemble of learned dynamics model to predict the next state.
-            :param states  : [self.popsize * self.num_particles, self.state_dim]
+            :param states  : [INCORRECT] [self.popsize * self.num_particles, self.state_dim]
             :param actions : [self.popsize, self.action_dim]
         """
 
         # TODO: write your code here
         # REMEMBER: model prediction is delta   
         # Next state = delta sampled from model prediction + CURRENT state!
+        # TS1 selection
+        self.model.eval()
+        action_tile_factor = states.shape[0] // actions.shape[0]
+        assert states.shape[0] % actions.shape[0] == 0
+        actions = np.tile(actions, [action_tile_factor, 1])
+        selected_model_idx = np.random.choice(self.model.num_nets)
+        selected_model = self.model.networks[selected_model_idx]
 
-        raise NotImplementedError
+        # TODO: discuss: whether to use clipped version (get output from model) during TS1 sampling?
+        model_input = torch.tensor(np.concatenate([states, actions], axis=1), dtype=torch.float32)
+        particle_state_mean_logvar = selected_model(model_input)
+        particle_state_mean_logvar = self.model.get_output(particle_state_mean_logvar)
+
+        particle_state_mean = particle_state_mean_logvar[0]
+        particle_state_logvar = particle_state_mean_logvar[1]
+
+        # sample from the predicted distribution
+        particle_randn = torch.randn([states.shape[0], self.state_dim])
+        particle_state_delta = particle_state_mean + torch.exp(particle_state_logvar / 2) * particle_randn
+        nxt_states = states + particle_state_delta.cpu().detach().numpy()
+        return nxt_states
 
     def predict_next_state_gt(self, states, actions):
         """ Given a list of state action pairs, use the ground truth dynamics to predict the next state"""

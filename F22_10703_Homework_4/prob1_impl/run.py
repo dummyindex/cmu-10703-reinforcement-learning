@@ -221,6 +221,8 @@ def train_single_dynamics(num_test_episode=50, device=None):
     num_nets = 1
     num_episodes = 1000
     num_train_itrs = 100
+    # num_episodes = 1
+    # num_train_itrs = 5
     mpc_params = {"use_mpc": True, "num_particles": 6}
     exp = ExperimentModelDynamics(env_name="Pushing2D-v1", num_nets=num_nets, mpc_params=mpc_params, device=device)
 
@@ -272,5 +274,5 @@ if __name__ == "__main__":
     device = torch.device('cuda:%d' % gpu_number if torch.cuda.is_available() else 'cpu')
 
     # test_cem_gt_dynamics(50)    # Q1.1
-    train_single_dynamics(50, device=device)   # Q1.2
-    # train_pets(device=device)  # Q1.3
+    # train_single_dynamics(50, device=device)   # Q1.2
+    train_pets(device=device)  # Q1.3
