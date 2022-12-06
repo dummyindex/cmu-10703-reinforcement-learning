@@ -129,7 +129,7 @@ def expand_root(node: Node, actions: list, network: BaseNetwork, current_state):
     Return: the value of the root
     """
     # get hidden state representation
-    transformed_value, _, policy_logits, hidden_representation = network.initial_inference(current_state)
+    transformed_value, _, policy_logits, hidden_representation = network.initial_inference(current_state.reshape(1, -1))
     node.reward = transformed_value
     node.hidden_representation = hidden_representation
     # Extract softmax policy and set node.policy
@@ -138,8 +138,9 @@ def expand_root(node: Node, actions: list, network: BaseNetwork, current_state):
     # node.policy = policy
 
     # instantiate node's children with prior values, obtained from the predicted policy
+    policy_arr = policy.numpy()[0]
     for action in actions: # action is int
-        node.children[action] = Node(policy[action])
+        node.children[action] = Node(policy_arr[action])
 
     # set node as expanded
     node.expanded = True
@@ -156,10 +157,11 @@ def expand_node(node: Node, actions, network: BaseNetwork, parent_state, parent_
     Return: value
     """
     # get hidden state representation
-    transformed_value, transformed_rewards, policy_logits, hidden_representation = network.recurrent_inference(parent_state, parent_action)
+    transformed_value, transformed_rewards, policy_logits, hidden_representation = network.recurrent_inference(tf.reshape(parent_state, (1, -1)), tf.reshape(parent_action, (1, -1)))
     node.reward = transformed_rewards
     node.hidden_representation = hidden_representation
 
+    policy_logits = policy_logits.numpy()[0]
     for action in actions:
         node.children[action] = Node(policy_logits[action])
     
