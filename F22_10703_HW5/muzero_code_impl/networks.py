@@ -205,8 +205,9 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
 
         # YOUR CODE HERE: Perform initial embedding of state batch
 
-        pred_values, transformed_rewards, policy_logits, hidden_representation = network.initial_inference(np.array(state_batch))
-
+        # pred_values, transformed_rewards, policy_logits, hidden_representation = network.initial_inference(np.array(state_batch))
+        init_latent_state, pred_values, policy_logits = network.initial_model.call(np.array(state_batch))
+        
         target_value_batch, _, target_policy_batch = zip(
             *targets_init_batch)
         # Use this to convert scalar value targets to categorical representation
@@ -215,15 +216,15 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
             tf.convert_to_tensor(target_value_batch))
         # YOUR CODE HERE: Compute the loss of the first pass (no reward loss)
         # Remember to scale value loss!
-
-        l_v_init = tf.nn.softmax_cross_entropy_with_logits(target_value_batch, pred_values)
-        l_p_init = tf.nn.softmax_cross_entropy_with_logits(target_policy_batch, policy_logits)
-        l_init = l_v_init * 0.25 + l_p_init
+        l_v_init = tf.nn.softmax_cross_entropy_with_logits(labels=target_value_batch, logits=pred_values)
+        l_p_init = tf.nn.softmax_cross_entropy_with_logits(labels=target_policy_batch, logits=policy_logits)
+        l_init = tf.reduce_mean(l_v_init) * 0.25 + tf.reduce_mean(l_p_init)
 
         loss = l_init
         mse_loss = tf.keras.losses.MeanSquaredError()
         # TODO: discuss: according to https://piazza.com/class/l6ux8qcfetf38o/post/467, use config val
         # num_unroll_step = len(actions_batch)
+        cur_latent_state = init_latent_state
         for actions_batch, targets_batch in zip(actions_batch, targets_recurrent_batch):
             target_value_batch, target_reward_batch, target_policy_batch = zip(
                 *targets_batch)
@@ -232,8 +233,10 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
             # Recurrent step from conditioned representation: recurrent + prediction networks
 
             # TODO: double check this
-            pred_values, transformed_rewards, policy_logits, hidden_representation = network.recurrent_inference(np.array(state_batch), np.array(actions_batch))
-
+            # pred_values, transformed_rewards, policy_logits, hidden_representation = network.recurrent_inference(np.array(state_batch), np.array(actions_batch))
+            actions_batch_onehot = tf.one_hot(actions_batch, config.action_space_size)
+            recurrent_input = tf.concat((cur_latent_state, actions_batch_onehot), axis=1)
+            new_latent_state,  transformed_rewards, pred_values, policy_logits = network.recurrent_model(recurrent_input)
             # Same as above, convert scalar targets to categorical
             target_value_batch = tf.convert_to_tensor(target_value_batch)
             target_value_batch = network._scalar_to_support(target_value_batch)
@@ -244,24 +247,28 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
             # YOUR CODE HERE: Compute value loss, reward loss, policy loss
             # Remember to scale value loss!
             # Add to total losses
-            pred_values_logits = network._scalar_to_support(pred_values)
-            l_v = tf.nn.softmax_cross_entropy_with_logits(target_value_batch, pred_values_logits)
+            l_v = tf.nn.softmax_cross_entropy_with_logits(target_value_batch, pred_values)
             l_r = mse_loss(target_reward_batch, transformed_rewards)
             l_p = tf.nn.softmax_cross_entropy_with_logits(target_policy_batch, policy_logits)
+            # reduce with mean
+            l_v, l_r, l_p = tf.reduce_mean(l_v), tf.reduce_mean(l_r), tf.reduce_mean(l_p)
             l_step = 0.25 * l_v + l_r + l_p
             total_policy_loss += l_p
             total_value_loss += l_v
             total_reward_loss += l_r
             # YOUR CODE HERE: Half the gradient of the representation
             # TODO: discussed during recitation
-            scale_gradient(hidden_representation, 0.5)
+            scale_gradient(cur_latent_state, 0.5)
             # YOUR CODE HERE: Sum the losses, scale gradient of the loss, add to overall loss
             loss += l_step / config.num_unroll_steps
+            cur_latent_state = new_latent_state
+        
         train_results.total_losses.append(loss)
         train_results.value_losses.append(total_value_loss)
         train_results.policy_losses.append(total_policy_loss)
         train_results.reward_losses.append(total_reward_loss)
         return loss
+    
     optimizer.minimize(loss=loss, var_list=network.cb_get_variables())
     network.train_steps += 1
     # raise NotImplementedError()

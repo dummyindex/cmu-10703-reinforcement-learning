@@ -155,9 +155,9 @@ def get_cartpole_config(num_simulations=50):
         # exploration in action selection
         visit_softmax_temperature_fn=visit_softmax_temperature,
         num_epochs=50,
-        games_per_epoch=20,
-        train_per_epoch=30,
-        # games_per_epoch=6,
-        # train_per_epoch=6,
+        # games_per_epoch=20,
+        # train_per_epoch=30,
+        games_per_epoch=2,
+        train_per_epoch=1,
         episodes_per_test=10
     )
