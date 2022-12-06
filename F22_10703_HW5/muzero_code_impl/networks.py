@@ -250,7 +250,7 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
             total_value_loss += l_v
             total_reward_loss += l_r
             # YOUR CODE HERE: Half the gradient of the representation
-            # TODO: discuss
+            # TODO: discussed during recitation
             scale_gradient(hidden_representation, 0.5)
             # YOUR CODE HERE: Sum the losses, scale gradient of the loss, add to overall loss
             loss += l_step / config.num_unroll_steps
