@@ -157,5 +157,7 @@ def get_cartpole_config(num_simulations=50):
         num_epochs=50,
         games_per_epoch=20,
         train_per_epoch=30,
+        # games_per_epoch=6,
+        # train_per_epoch=6,
         episodes_per_test=10
     )
