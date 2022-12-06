@@ -179,12 +179,12 @@ def backpropagate(path: List[Node], value, discount, min_max_stats):
     for node in reversed(path):
         # YOUR CODE HERE
         node.visit_count += 1
-        # TODO: the following line can be optimized; however given action space=2 is small, not necessary here.
-        children_value_sum = np.sum([child.value_sum for child in node.children.values()])
-        node.value_sum = children_value_sum * discount + node.reward
+
+        # TODO: discuss correctness and meaning of value_sum
+        cur_sum = discount * cur_sum + node.reward
+        node.value_sum += cur_sum
         min_max_stats.update(node.value())
     
-
 
 
 def add_exploration_noise(config, node):
@@ -211,9 +211,9 @@ def visit_softmax_temperature(num_moves):
     return 1
 
 
-def softmax_sample(visit_counts, temperature):
+def softmax_sample(visit_counts_action, temperature):
     """
-    Sample an actions
+    Sample an action
 
     Input: visit_counts as list of [(visit_count, action)] for each child
     If temperature == 0, choose argmax
@@ -221,4 +221,11 @@ def softmax_sample(visit_counts, temperature):
     """
 
     # YOUR CODE HERE
-    raise NotImplementedError()
+    if temperature == 0:
+        idx = np.argmax([count for count, _ in visit_counts_action])
+        return visit_counts_action[idx][1]
+    else:
+        visit_counts = np.array([count for count, _ in visit_counts_action])** (1/temperature)
+        probs = visit_counts / np.sum(visit_counts)
+        action_idx = np.random.choice(len(probs), p=probs)
+        return visit_counts_action[action_idx][1]
