@@ -1,4 +1,7 @@
+from typing import List
 import numpy as np
+from networks_base import BaseNetwork
+import tensorflow as tf
 
 
 class Node(object):
@@ -86,6 +89,8 @@ def select_child(config, node: Node, min_max_stats):
         _ucb_score = ucb_score(config, node, child, min_max_stats)
         ucb_scores.append(_ucb_score)
     max_idx = np.argmax(ucb_scores)
+
+    # TODO: check with teammates: cartpole is deterministic (aka, f: (a, s) -> s' is deterministic)
     action = list(node.children.keys())[max_idx]
     child = node.children[action]
     return action, child
@@ -108,7 +113,7 @@ def ucb_score(config, parent:Node, child: Node, min_max_stats):
     return prior_score + value_score
 
 
-def expand_root(node, actions, network, current_state):
+def expand_root(node: Node, actions: list, network: BaseNetwork, current_state):
     """
     TODO: Implement this function
     Expand the root node given the current state
@@ -118,21 +123,30 @@ def expand_root(node, actions, network, current_state):
     Also, set node.expanded to be true
     For setting the nodes children, you should use node.children and  instantiate
     with the prior from the policy
+    Args:
+        action: list(range(config.action_space_size))
 
     Return: the value of the root
     """
     # get hidden state representation
-
+    transformed_value, _, policy_logits, hidden_representation = network.initial_inference(current_state)
+    node.reward = transformed_value
+    node.hidden_representation = hidden_representation
     # Extract softmax policy and set node.policy
+    policy = tf.nn.softmax(policy_logits)
+    # TODO: not used anywhere, see https://piazza.com/class/l6ux8qcfetf38o/post/473, just stop saving node.policy
+    # node.policy = policy
 
     # instantiate node's children with prior values, obtained from the predicted policy
+    for action in actions: # action is int
+        node.children[action] = Node(policy[action])
 
     # set node as expanded
-    raise NotImplementedError()
-    return value
+    node.expanded = True
+    return transformed_value
 
 
-def expand_node(node, actions, network, parent_state, parent_action):
+def expand_node(node: Node, actions, network: BaseNetwork, parent_state, parent_action):
     """
     TODO: Implement this function
     Expand a node given the parent state and action
@@ -141,11 +155,19 @@ def expand_node(node, actions, network, parent_state, parent_action):
 
     Return: value
     """
-    raise NotImplementedError()
-    return value
+    # get hidden state representation
+    transformed_value, transformed_rewards, policy_logits, hidden_representation = network.recurrent_inference(parent_state, parent_action)
+    node.reward = transformed_rewards
+    node.hidden_representation = hidden_representation
+
+    for action in actions:
+        node.children[action] = Node(policy_logits[action])
+    
+    node.expanded = True
+    return transformed_value
 
 
-def backpropagate(path, value, discount, min_max_stats):
+def backpropagate(path: List[Node], value, discount, min_max_stats):
     """
     Backpropagate the value up the path
 
@@ -153,10 +175,16 @@ def backpropagate(path, value, discount, min_max_stats):
 
     Update the value with discount and reward of node
     """
+    cur_sum = 0
     for node in reversed(path):
         # YOUR CODE HERE
+        node.visit_count += 1
+        # TODO: the following line can be optimized; however given action space=2 is small, not necessary here.
+        children_value_sum = np.sum([child.value_sum for child in node.children.values()])
+        node.value_sum = children_value_sum * discount + node.reward
         min_max_stats.update(node.value())
-    raise NotImplementedError()
+    
+
 
 
 def add_exploration_noise(config, node):
