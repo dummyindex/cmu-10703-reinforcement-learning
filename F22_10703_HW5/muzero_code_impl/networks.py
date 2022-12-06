@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.losses import MSE
@@ -8,6 +9,7 @@ import numpy as np
 import math
 from typing import Callable
 from networks_base import BaseNetwork
+from config import MuZeroConfig
 
 
 def action_to_one_hot(action, action_space_size):
@@ -172,7 +174,7 @@ def train_network(config, network, replay_buffer, optimizer, train_results):
         update_weights(config, network, optimizer, batch, train_results)
 
 
-def update_weights(config, network, optimizer, batch, train_results):
+def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, batch, train_results):
     """
     TODO: Implement this function
     Train the network_model by sampling games from the replay_buffer.
@@ -200,6 +202,7 @@ def update_weights(config, network, optimizer, batch, train_results):
          actions_batch) = batch
 
         # YOUR CODE HERE: Perform initial embedding of state batch
+        pred_values, transformed_rewards, policy_logits, hidden_representation = network.initial_inference(state_batch)
 
         target_value_batch, _, target_policy_batch = zip(
             *targets_init_batch)
@@ -209,13 +212,24 @@ def update_weights(config, network, optimizer, batch, train_results):
             tf.convert_to_tensor(target_value_batch))
         # YOUR CODE HERE: Compute the loss of the first pass (no reward loss)
         # Remember to scale value loss!
+        pred_values_logits = network._scalar_to_support(pred_values)
+        l_v_init = tf.nn.softmax_cross_entropy_with_logits(target_value_batch, pred_values_logits)
+        l_p_init = tf.nn.softmax_cross_entropy_with_logits(target_policy_batch, policy_logits)
+        l_init = l_v_init * 0.25 + l_p_init
 
+        loss = l_init
+        mse_loss = tf.keras.losses.MeanSquaredError()
+        # TODO: discuss: according to https://piazza.com/class/l6ux8qcfetf38o/post/467, use config val
+        # num_unroll_step = len(actions_batch)
         for actions_batch, targets_batch in zip(actions_batch, targets_recurrent_batch):
             target_value_batch, target_reward_batch, target_policy_batch = zip(
                 *targets_batch)
             # YOUR CODE HERE:
             # Create conditioned_representation: concatenate representations with actions batch
             # Recurrent step from conditioned representation: recurrent + prediction networks
+
+            # TODO: double check this
+            pred_values, transformed_rewards, policy_logits, hidden_representation = network.recurrent_inference(state_batch, actions_batch)
 
             # Same as above, convert scalar targets to categorical
             target_value_batch = tf.convert_to_tensor(target_value_batch)
@@ -227,10 +241,19 @@ def update_weights(config, network, optimizer, batch, train_results):
             # YOUR CODE HERE: Compute value loss, reward loss, policy loss
             # Remember to scale value loss!
             # Add to total losses
-
+            pred_values_logits = network._scalar_to_support(pred_values)
+            l_v = tf.nn.softmax_cross_entropy_with_logits(target_value_batch, pred_values_logits)
+            l_r = mse_loss(target_reward_batch, transformed_rewards)
+            l_p = tf.nn.softmax_cross_entropy_with_logits(target_policy_batch, policy_logits)
+            l_step = 0.25 * l_v + l_r + l_p
+            total_policy_loss += l_p
+            total_value_loss += l_v
+            total_reward_loss += l_r
             # YOUR CODE HERE: Half the gradient of the representation
-
+            # TODO: discuss
+            scale_gradient(hidden_representation, 0.5)
             # YOUR CODE HERE: Sum the losses, scale gradient of the loss, add to overall loss
+            loss += l_step / config.num_unroll_steps
         train_results.total_losses.append(loss)
         train_results.value_losses.append(total_value_loss)
         train_results.policy_losses.append(total_policy_loss)
@@ -238,4 +261,4 @@ def update_weights(config, network, optimizer, batch, train_results):
         return loss
     optimizer.minimize(loss=loss, var_list=network.cb_get_variables())
     network.train_steps += 1
-    raise NotImplementedError()
+    # raise NotImplementedError()
