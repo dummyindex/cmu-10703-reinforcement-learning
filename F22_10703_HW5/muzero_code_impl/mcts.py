@@ -54,7 +54,7 @@ def run_mcts(config, root, network, min_max_stats):
                       config.discount, min_max_stats)
 
 
-def select_action(config, num_moves, node, network, test=False):
+def select_action(config, num_moves, node: Node, network, test=False):
     """
     Select an action to take
 
@@ -73,7 +73,7 @@ def select_action(config, num_moves, node, network, test=False):
     return action
 
 
-def select_child(config, node, min_max_stats):
+def select_child(config, node: Node, min_max_stats):
     """
     TODO: Implement this function
     Select a child in the MCTS
@@ -81,11 +81,17 @@ def select_child(config, node, min_max_stats):
     normalized Q values from the min max stats
     """
 
-    raise NotImplementedError()
+    ucb_scores = []
+    for child in node.children.values():
+        _ucb_score = ucb_score(config, node, child, min_max_stats)
+        ucb_scores.append(_ucb_score)
+    max_idx = np.argmax(ucb_scores)
+    action = list(node.children.keys())[max_idx]
+    child = node.children[action]
     return action, child
 
 
-def ucb_score(config, parent, child, min_max_stats):
+def ucb_score(config, parent:Node, child: Node, min_max_stats):
     """
     Compute UCB Score of a child given the parent statistics
     """
