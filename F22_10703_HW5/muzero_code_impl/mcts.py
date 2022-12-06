@@ -175,16 +175,15 @@ def backpropagate(path: List[Node], value, discount, min_max_stats):
 
     Update the value with discount and reward of node
     """
-    cur_sum = 0
+    cur_sum = value
     for node in reversed(path):
         # YOUR CODE HERE
         node.visit_count += 1
 
-        # TODO: discuss correctness and meaning of value_sum
-        cur_sum = discount * cur_sum + node.reward
+        # TODO: discuss correctness and meaning of value_sum; below maybe incorrect
         node.value_sum += cur_sum
+        cur_sum = (discount * cur_sum + node.reward) * node.prior
         min_max_stats.update(node.value())
-    
 
 
 def add_exploration_noise(config, node):
