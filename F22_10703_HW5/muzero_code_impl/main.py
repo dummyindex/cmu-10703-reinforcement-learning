@@ -28,6 +28,7 @@ if __name__ == "__main__":
     with tf.device('/GPU:0'):
         parser = argparse.ArgumentParser(description='Train MuZero.')
         parser.add_argument('--num_simulations', type=int, default=50)
+        parser.add_argument('--save_dir', type=str, default="tmp_results")
         args = parser.parse_args()
         print("num simulations:", args.num_simulations)
 
@@ -43,4 +44,6 @@ if __name__ == "__main__":
 
         # Create buffer to store games
         replay_buffer = ReplayBuffer(config)
-        self_play(env, config, replay_buffer, network)
+        print(args)
+        os.makedirs(args.save_dir, exist_ok=True)
+        self_play(env, config, replay_buffer, network, save_dir=args.save_dir)

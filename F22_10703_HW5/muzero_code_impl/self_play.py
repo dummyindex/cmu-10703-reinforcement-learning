@@ -11,12 +11,12 @@ CARTPOLE_STOP_REWARD = 195
 LAST_N = 40
 
 
-def self_play(env, config: MuZeroConfig, replay_buffer: ReplayBuffer, network: CartPoleNetwork):
+def self_play(env, config: MuZeroConfig, replay_buffer: ReplayBuffer, network: CartPoleNetwork, save_dir="./results"):
     # Create optimizer for training
     optimizer = Adam(learning_rate=config.lr_init)
     games_played = 0
-    test_rewards = TestResults()
-    train_results = TrainResults()
+    test_rewards = TestResults(save_dir=save_dir)
+    train_results = TrainResults(save_dir=save_dir)
     for i in range(config.num_epochs):  # Number of Steps of train/play alternations
         print(f"Epoch Number {i}")
         games_played, score = play_games(

@@ -3,6 +3,7 @@ from typing import Optional
 from mcts import visit_softmax_temperature
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
 
 MAX_FLOAT_VAL = float('inf')
 
@@ -11,17 +12,19 @@ KnownBounds = collections.namedtuple('KnownBounds', ['min', 'max'])
 
 class TrainResults(object):
 
-    def __init__(self):
+    def __init__(self, save_dir=None):
         self.value_losses = []
         self.reward_losses = []
         self.policy_losses = []
         self.total_losses = []
+        self.save_dir = Path(save_dir)
 
     def plot_total_loss(self):
         x_vals = np.arange(len(self.total_losses))
         plt.plot(x_vals, self.total_losses, label="Train Loss")
         plt.xlabel("Train Steps")
         plt.ylabel("Loss")
+        plt.savefig(self.save_dir / "total_loss.png")
         plt.show()
 
     def plot_individual_losses(self):
@@ -32,6 +35,7 @@ class TrainResults(object):
         plt.xlabel("Train Steps")
         plt.ylabel("Losses")
         plt.legend()
+        plt.savefig(self.save_dir / "individual_losses.png")
         plt.show()
 
     def plot_policy_loss(self):
@@ -40,13 +44,15 @@ class TrainResults(object):
         plt.xlabel("Train Steps")
         plt.ylabel("Losses")
         plt.legend()
+        plt.savefig(self.save_dir / "policy_loss.png")
         plt.show()
 
 
 class TestResults(object):
 
-    def __init__(self):
+    def __init__(self, save_dir=None):
         self.test_rewards = []
+        self.save_dir = Path(save_dir)
 
     def add_reward(self, reward):
         self.test_rewards.append(reward)
@@ -62,6 +68,7 @@ class TestResults(object):
         plt.plot(x_vals, self.test_rewards, label="Test Reward")
         plt.xlabel("Test Episodes")
         plt.ylabel("Reward")
+        plt.savefig(self.save_dir / "test_rewards.png")
         plt.show()
 
 
