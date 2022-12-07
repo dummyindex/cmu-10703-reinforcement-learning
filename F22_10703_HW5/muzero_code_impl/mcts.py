@@ -184,7 +184,7 @@ def backpropagate(path: List[Node], value, discount, min_max_stats):
 
         # TODO: discuss correctness and meaning of value_sum; below maybe incorrect
         node.value_sum += cur_sum
-        cur_sum = (discount * cur_sum + node.reward) * node.prior
+        cur_sum = (discount * cur_sum + node.reward) # * node.prior
         min_max_stats.update(node.value())
 
 
@@ -226,7 +226,7 @@ def softmax_sample(visit_counts_action, temperature):
         idx = np.argmax([count for count, _ in visit_counts_action])
         return visit_counts_action[idx][1]
     else:
-        visit_counts = np.array([count for count, _ in visit_counts_action])** (1/temperature)
-        probs = visit_counts / np.sum(visit_counts)
+        config_z = np.array([count for count, _ in visit_counts_action])** (1/temperature)
+        probs = config_z / np.sum(config_z)
         action_idx = np.random.choice(len(probs), p=probs)
         return visit_counts_action[action_idx][1]
