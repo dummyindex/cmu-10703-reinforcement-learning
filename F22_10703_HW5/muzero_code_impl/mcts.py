@@ -129,8 +129,8 @@ def expand_root(node: Node, actions: list, network: BaseNetwork, current_state):
     Return: the value of the root
     """
     # get hidden state representation
-    transformed_value, _, policy_logits, hidden_representation = network.initial_inference(current_state.reshape(1, -1))
-    node.reward = transformed_value
+    transformed_value, reward, policy_logits, hidden_representation = network.initial_inference(current_state.reshape(1, -1))
+    node.reward = reward
     node.hidden_representation = hidden_representation
     # Extract softmax policy and set node.policy
     policy = tf.nn.softmax(policy_logits)
