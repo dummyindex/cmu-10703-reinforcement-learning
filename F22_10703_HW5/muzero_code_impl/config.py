@@ -25,7 +25,8 @@ class TrainResults(object):
         plt.xlabel("Train Steps")
         plt.ylabel("Loss")
         plt.savefig(self.save_dir / "total_loss.png")
-        plt.show()
+        # plt.show()
+        plt.clf()
 
     def plot_individual_losses(self):
         x_vals = np.arange(len(self.total_losses))
@@ -36,7 +37,8 @@ class TrainResults(object):
         plt.ylabel("Losses")
         plt.legend()
         plt.savefig(self.save_dir / "individual_losses.png")
-        plt.show()
+        # plt.show()
+        plt.clf()
 
     def plot_policy_loss(self):
         x_vals = np.arange(len(self.total_losses))
@@ -45,7 +47,8 @@ class TrainResults(object):
         plt.ylabel("Losses")
         plt.legend()
         plt.savefig(self.save_dir / "policy_loss.png")
-        plt.show()
+        # plt.show()
+        plt.clf()
 
 
 class TestResults(object):
@@ -69,7 +72,8 @@ class TestResults(object):
         plt.xlabel("Test Episodes")
         plt.ylabel("Reward")
         plt.savefig(self.save_dir / "test_rewards.png")
-        plt.show()
+        # plt.show()
+        plt.clf()
 
 
 class MinMaxStats(object):

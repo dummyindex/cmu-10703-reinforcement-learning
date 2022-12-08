@@ -26,12 +26,14 @@ def self_play(env, config: MuZeroConfig, replay_buffer: ReplayBuffer, network: C
         print("Eval score:", test(config, network, env, test_rewards))
         reward_avg, n = test_rewards.last_n_average(LAST_N)
         print(f"Last {n} rewards average: {reward_avg}")
+
+        # TODO: single thread?
+        train_results.plot_total_loss()
+        train_results.plot_individual_losses()
+        test_rewards.plot_rewards()
         if reward_avg >= CARTPOLE_STOP_REWARD:
             print("Agent Successfully learned cartpole")
             # Plotting code here
-            train_results.plot_individual_losses()
-            train_results.plot_total_loss()
-            test_rewards.plot_rewards()
             return
 
 
