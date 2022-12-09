@@ -16,7 +16,6 @@ for gpu in gpus:
 
 SEED = 10
 
-
 def set_seeds(seed=SEED):
     os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
@@ -29,11 +28,12 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description='Train MuZero.')
         parser.add_argument('--num_simulations', type=int, default=50)
         parser.add_argument('--save_dir', type=str, default="tmp_results")
+        parser.add_argument('--seed', type=int, default=SEED)
         args = parser.parse_args()
         print("num simulations:", args.num_simulations)
 
         # Set seeds for reproducibility
-        set_seeds()
+        set_seeds(args.seed)
         # Create the cartpole network
         network = CartPoleNetwork(
             action_size=2, state_shape=(None, 4), embedding_size=4, max_value=200)
