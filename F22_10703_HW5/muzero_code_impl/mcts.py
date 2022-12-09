@@ -93,8 +93,7 @@ def select_child(config, node: Node, min_max_stats):
         children.append(child)
         actions.append(action)
     max_idx = np.argmax(ucb_scores)
-
-    # TODO: check with teammates: cartpole is deterministic (aka, f: (a, s) -> s' is deterministic)
+    
     action = actions[max_idx]
     child = node.children[action]
     return action, child

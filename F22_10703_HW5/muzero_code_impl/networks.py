@@ -204,10 +204,7 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
          actions_batch) = batch
 
         # YOUR CODE HERE: Perform initial embedding of state batch
-
-        # pred_values, transformed_rewards, policy_logits, hidden_representation = network.initial_inference(np.array(state_batch))
         init_latent_state, pred_values, policy_raw_logits = network.initial_model.call(np.array(state_batch))
-        
         target_value_batch, _, target_policy_batch = zip(
             *targets_init_batch)
         # Use this to convert scalar value targets to categorical representation
@@ -222,7 +219,7 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
 
         loss = l_init
         mse_loss = tf.keras.losses.MeanSquaredError()
-        # TODO: discuss: according to https://piazza.com/class/l6ux8qcfetf38o/post/467, use config val
+        # TODO: discuss: according to https://piazza.com/class/l6ux8qcfetf38o/post/467, use config val instead
         # num_unroll_step = len(actions_batch)
         cur_latent_state = init_latent_state
         for actions_batch, targets_batch in zip(actions_batch, targets_recurrent_batch):
@@ -232,8 +229,6 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
             # Create conditioned_representation: concatenate representations with actions batch
             # Recurrent step from conditioned representation: recurrent + prediction networks
 
-            # TODO: double check this
-            # pred_values, transformed_rewards, policy_logits, hidden_representation = network.recurrent_inference(np.array(state_batch), np.array(actions_batch))
             actions_batch_onehot = tf.one_hot(actions_batch, config.action_space_size)
             recurrent_input = tf.concat((cur_latent_state, actions_batch_onehot), axis=1)
             new_latent_state,  transformed_rewards, pred_values, policy_raw_logits = network.recurrent_model(recurrent_input)
@@ -268,7 +263,6 @@ def update_weights(config: MuZeroConfig, network: CartPoleNetwork, optimizer, ba
         train_results.policy_losses.append(total_policy_loss)
         train_results.reward_losses.append(total_reward_loss)
         return loss
-    
     optimizer.minimize(loss=loss, var_list=network.cb_get_variables())
     network.train_steps += 1
     # raise NotImplementedError()
